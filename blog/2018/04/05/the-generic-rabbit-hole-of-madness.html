@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>The Generic Rabbit Hole of Madness</title>
+    <meta name="description" content="Have you ever written a few generic classes and found yourself struggling to write yet another interface and class that interacts with those generic classes?...">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2018/04/05/the-generic-rabbit-hole-of-madness.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">The Generic Rabbit Hole of Madness</h1>
+    <p class="post-meta"><time datetime="2018-04-05T05:20:58-04:00" itemprop="datePublished">Apr 5, 2018</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>Have you ever written a few generic classes and found yourself struggling to write yet another interface and class that interacts with those generic classes? Maybe something like this:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>public interface IMultipleMappingCommandExecutor&lt;TRepository, TData, TResult&gt;
+    where TRepository : IRepository&lt;TData&gt;
+{
+    IEnumerable&lt;TResult&gt; ExecuteCommands&lt;ICommandInput, ICommandOutput&gt;(
+        IEnumerable&lt;Command&lt;ICommandInput, ICommandOutput&gt;&gt; commands)
+        where TCommandInput : ICommandInput
+        where TCommandOutput : ICommandOutput;
+}
+</code></pre></div></div>
+<p>If you’ve gone down this path, you’ve likely experienced the frustration of cycling through these various states:</p>
+<ul>
+  <li>It won’t compile.</li>
+  <li>It compiles but our generic arguments require us to specify what the types in our <code class="highlighter-rouge">IEnumerable&lt;TSomething&lt;TSomethingElse&lt;TWhat&gt;&gt;&gt;</code> are, when we really wanted them to be anything and everything at the same time, because isn’t that what generics are for?</li>
+  <li>We create interfaces or abstract classes and constrain our generic types to implement them, like <code class="highlighter-rouge">where TCommandInput : ICommandInput</code>, and now we can use the type of collection we want and it compiles…</li>
+  <li>…But now our generic method doesn’t know what the actual types in the collection are. It just knows that they implement <code class="highlighter-rouge">ICommandInput</code> or <code class="highlighter-rouge">ICommandOutput</code>. So our method has to check the actual type of the object and branch accordingly.</li>
+  <li>We try to fix it by adding more generic arguments.</li>
+  <li>We try to fix it by adding more base classes.</li>
+  <li>We Google “covariant” because it’s in a compiler error and then read the
+first three paragraphs of <a href="https://docs.microsoft.com/en-us/dotnet/standard/generics/covariance-and-contravariance">Covariance and Contravariance in Generics</a>.</li>
+  <li>We go for a walk or play some ping pong to clear our head.</li>
+  <li>We try replacing one or more of our types with <code class="highlighter-rouge">dynamic</code>.</li>
+  <li>We post a question on Stack Overflow, replacing all of our class names with <code class="highlighter-rouge">Base</code>, <code class="highlighter-rouge">A</code>, <code class="highlighter-rouge">B</code>, and <code class="highlighter-rouge">C</code>, and our interface name with <code class="highlighter-rouge">IFruit&lt;Base&gt;</code>. The comments ask for clarification but we’re having  a hard time remembering what we were trying to do.</li>
+  <li>It works, somehow, but now we need it to do something slightly different, and our head explodes.</li>
+</ul>
+
+<p>I’ve done all of the above (except the Stack Overflow question which is real and frequent) enough times that I gave it a name: <em>The Generic Rabbit Hole of Madness</em>.</p>
+
+<h2 id="why-does-this-happen">Why Does This Happen?</h2>
+<p>As children, how often did we use our Legos to build lots of really small objects? If we had a few decks of cards, how often did we build fifty really small houses of cards? More likely we were focused on building some glorious, towering, complex architecture.</p>
+
+<p>Perhaps that understandable mentality influences us later in life as software developers, so that we find ourselves trying to create larger, more complex classes rather than smaller, simpler ones. In addition, many introductory courses and books about object-oriented programming overemphasize the use of inheritance without warning of the dangers.</p>
+
+<p>When we first create a hierarchy of inherited classes, we may experience the illusion that we’re building an impressive structure, just as we did with our Legos. In reality, we’re just creating a lot of individual classes that are coupled to each other. An inherited class may seem like it builds on top of its base class, but it’s really just a new class that depends on that base class.</p>
+
+<p>Generics are like some awesome new add-on set for our Legos with wheels, action figures, or lasers. Now we can build something way cooler with more moving parts and show it to our friends. It’s only natural that when we first get them we’ll go a little overboard.</p>
+
+<h2 id="how-to-step-back-from-the-edge">How to Step Back From The Edge</h2>
+<p>When I’ve gotten carried away building a bunch of interfaces like the ones in the example above, or maybe some base classes, most of the time I hadn’t written any concrete, useful code to implement any of it. I was just enamored with the idea that my actual code would fit into this impressive framework I was creating and I spent way too much time on that. And almost without exception, the second I started coding something real (if I got that far) I realized that it wouldn’t fit my generic monstrosity.</p>
+
+<p>The antidote to the Generic Rabbit Hole of Madness is to steer away from that distraction and just write the actual code that we need to do the actual thing that we need it to do right now. And write unit tests. If we begin writing more similar code and start to see a pattern develop, that’s when we may see how to reuse common elements, which may include using generics. But whether or not that happens we’re actually producing something that works and not just spinning our wheels.</p>
+
+<h2 id="a-simple-example-of-a-useful-generic-class">A Simple Example of a <em>Useful</em> Generic Class</h2>
+
+<p>A good illustration why we use generics is <code class="highlighter-rouge">List&lt;T&gt;</code>. Before .NET 2.0, if we wanted a strongly-typed collection we had to write a lot of convoluted, repeated code. Many projects had classes for such collections like <code class="highlighter-rouge">SalesOrders</code>. <code class="highlighter-rouge">Contacts</code> , or <code class="highlighter-rouge">Products</code> which were all 100% identical, line-for-line, except for the type they collected.</p>
+
+<p>With .NET 2.0 and generics, all of that boilerplate code was perfected and moved into the framework itself so that we can reuse it and we only have to specify the type. We even have specialized collections like <code class="highlighter-rouge">HashSet&lt;T&gt;</code>, <code class="highlighter-rouge">Queue&lt;T&gt;</code>, and many more to address all sorts of scenarios, whereas writing and maintaining that code for numerous types would have been unrealistic.</p>
+
+<p>What does that show us? That we should use generics when we find ourselves writing or needing duplicate code that only varies by the type or types on which it operates. And more often than not, we’re only going to identify such duplicate code <em>if we write some code in the first place.</em> Sometimes we can see a little bit into the future, or see around the corner. We usually can’t. That’s why we write the best code we can write today, and refactor as we go, including when we realize that we’re about to introduce duplicate code.</p>
+
+<p>I’ve lost way too many hours to the Generic Rabbit Hole of Madness, and I’ve been far more productive since recognizing and breaking the habit. Hopefully my experience will save someone else that time. If go down that hole and after an hour you haven’t found the bottom, you likely never will.</p>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>

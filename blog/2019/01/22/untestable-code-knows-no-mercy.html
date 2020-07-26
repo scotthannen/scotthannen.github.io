@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>Untestable Code Knows No Mercy</title>
+    <meta name="description" content="What is untestable code?  It has no unit tests.  Writing unit tests for it would be difficult or impossible without modifying the code.  Common attributes in...">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2019/01/22/untestable-code-knows-no-mercy.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Untestable Code Knows No Mercy</h1>
+    <p class="post-meta"><time datetime="2019-01-22T00:00:00-05:00" itemprop="datePublished">Jan 22, 2019</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>What is untestable code?</p>
+<ul>
+  <li>It has no unit tests.</li>
+  <li>Writing unit tests for it would be difficult or impossible without modifying the code.</li>
+  <li>Common attributes include global state, tight coupling, and long methods that do lots of things.</li>
+</ul>
+
+<p>Testable code, on the other hand, tends to consist of smaller classes and methods with well-defined purposes. It avoids use of global state and uses a reasonable amount of abstraction to avoid tight coupling between components.</p>
+
+<p>Neither is meant to be a comprehensive definition. They’re just enough so that I can throw around the terms <em>testable code</em> and <em>untestable code</em> for the rest of this post.</p>
+
+<p>Untestable code is a cause that produces known effects. Those effects include:</p>
+<ul>
+  <li>More defects</li>
+  <li>Modifications are harder and riskier</li>
+  <li>End users wait longer for new features and bug fixes</li>
+</ul>
+
+<p>Conversely, testable code results in the reduction of all three.</p>
+
+<p>I hope that this is exciting, good news for at least a few people. The problems I’ve just summarized aren’t inevitable. They are effects that come from causes, and we can control those causes.</p>
+
+<p>Why the emphasis on cause and effect? Because sometimes we understand them but somehow think that they won’t apply in certain cases. We know what results from untestable code but act as if we don’t.</p>
+
+<p>I’ve addressed one such case <a href="http://scotthannen.org/blog/2018/04/03/tame-your-dependency-injection-registration.html">in this blog post</a>. Sometimes we use IoC containers to make our code more testable, and then we write hundreds or more lines of untestable code to configure the containers. Eventually we find it difficult to understand the code that composes the rest of our application. How does this happen? Because somehow we imagine that our dependency registration code is the exception to all the rules we normally set for ourselves, so we put it in a few massive methods and we don’t write tests for it. Then it gives us trouble because that’s what large methods without tests do.</p>
+
+<p>SQL stored procedures are another problem area for untestable code. Have you ever observed that teams can be careful and meticulous in C# but then go crazy in SQL? It doesn’t help that the language inherently favors optimization over all other concerns. We think in terms of what we want to do with individual records but then we have to code it using set-based operations. We express behaviors in inner and outer joins and make critical decisions with inline functions that appear in unexpected places. This makes it much harder to read complex code and understand what it does and why.</p>
+
+<p>We can’t avoid global state in SQL because tables <em>are</em> global state. It’s hard to avoid tight coupling when we’re forced to repeat lists of columns so that adding a column or changing a data type in one table can lead to cascading changes in any statement that touches it.</p>
+
+<p>There are <a href="https://tsqlt.org/">testing frameworks</a> that address some of these concerns, and it’s possible to break large procedures into smaller ones that pass data using table variables. I’ve yet to see a team use either approach. I’m convinced that testable SQL is possible. We just don’t think about it that way.</p>
+
+<p>I’m highlighting SQL stored procedures as an example because of the rampant abuse, but I’m thinking of any case in which we feel that for some exceptional reason we must or should write large amounts of complex, untestable, untested code. JavaScript is another. I wrote a ton of it before learning how to write unit tests for it, and I’ve seen massive amounts of application-critical JavaScript without a single test. (Doesn’t a language without type safety need <em>more</em> tests, not fewer?)</p>
+
+<p>Given that cause, there is only one reason to imagine that we will escape the harmful effects: Perhaps our code will show us mercy.</p>
+
+<p>We don’t say it or think of it that way, but isn’t that what we’re counting on? Perhaps our 600 line stored procedure will exhibit compassion, realizing that we had no choice but to write it that way, and kindly exempt us from the consequences. The thoughtful inner monologue of our code could go something like this:</p>
+
+<blockquote>
+  <p>It is not your fault. You could not have made me smaller, more readable, or given me unit tests, because I am SQL. It would be unfair for me to give you all the same grief and pain that comparable code would give you under any other circumstances. Therefore I shall show you mercy. I shall have no defects. I am incomprehensible, but I shall be the one piece of software that  no one will ever need to understand or modify.</p>
+</blockquote>
+
+<p>It sounds irrational, but doesn’t it sum up exactly what we’re hoping will happen? Aren’t we just pretending that cause and effect will give us a pass?</p>
+
+<p>The consequences for writing monolithic “units” of untestable code are exactly the same whether it’s SQL, C#, JavaScript, or any other language. To believe otherwise is like raising a grizzly bear cub and thinking that it won’t maul us to death just like a wild one. The bear doesn’t know whether it’s wild or not. It just acts according to its nature. Our code doesn’t know why it’s hundreds or thousands of lines long, untested and untestable, and it doesn’t care. It will grieve us and vex us six ways from Sunday. Everything we fear most will happen, and then some.</p>
+
+<p>We can either find a way to make it manageable or make an informed choice to accept the risks, but we can’t expect our code to show us mercy.</p>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>

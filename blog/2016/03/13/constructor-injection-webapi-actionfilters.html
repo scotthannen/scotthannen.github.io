@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>Dependency (Constructor) Injection With Web API Action Filters</title>
+    <meta name="description" content="There’s nothing original here. I wanted to be able to inject dependencies into Web API action filters and couldn’t see how until I read this post by Mark See...">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2016/03/13/constructor-injection-webapi-actionfilters.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Dependency (Constructor) Injection With Web API Action Filters</h1>
+    <p class="post-meta"><time datetime="2016-03-13T07:20:58-04:00" itemprop="datePublished">Mar 13, 2016</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>There’s nothing original here. I wanted to be able to inject dependencies into Web API action filters and couldn’t see how until I read <a href="http://blog.ploeh.dk/2014/06/13/passive-attributes/">this post</a> by Mark Seemann, author of <em><a href="https://www.manning.com/books/dependency-injection-in-dot-net">Dependency Injection in .NET</a></em>.</p>
+
+<p>Although a few other pages cited that post as containing the solution to my problem, it didn’t jump right out at me. Maybe it didn’t for you either. Or maybe you’re just smarter than me. Lots of people are.</p>
+
+<p>But perhaps this simplified explanation of what Seemann is doing will make it more accessible. (Call this <em>Reading Other People’s Posts For Dummies, by One</em>.)</p>
+
+<h3 id="why-dependency-injection-into-action-filters-seems-harder-then-dependency-injection-into-controllers">Why Dependency Injection Into Action Filters Seems Harder Then Dependency Injection Into Controllers</h3>
+
+<p>We often create action filters by inheriting from <code class="highlighter-rouge">ActionFilterAttribute</code>, like this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">MyActionFilterAttribute</span> <span class="p">:</span> <span class="n">ActionFilterAttribute</span>
+    <span class="p">{</span>
+        <span class="k">public</span> <span class="k">override</span> <span class="k">void</span> <span class="nf">OnActionExecuting</span><span class="p">(</span><span class="n">HttpActionContext</span> <span class="n">actionContext</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="c1">//Action filter does something</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>It’s an <code class="highlighter-rouge">Attribute</code>, so if we want to apply the filter to a controller or action we just add the attribute:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="p">[</span><span class="n">MyActionFilter</span><span class="p">]</span>
+    <span class="k">public</span> <span class="k">class</span> <span class="nc">MyController</span> <span class="p">:</span> <span class="n">ApiController</span>
+</code></pre></div></div>
+
+<p>But what if <code class="highlighter-rouge">MyActionFilterAttribute</code> has a constructor with dependencies? Now we can’t just add the attribute because we call the constructor wherever we use the attribute. This is not what we want:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="p">[</span><span class="nf">MyActionFilter</span><span class="p">(</span><span class="k">new</span> <span class="nf">Something</span><span class="p">(),</span> <span class="s">"someValue"</span><span class="p">)]</span>
+    <span class="k">public</span> <span class="k">class</span> <span class="nc">MyController</span> <span class="p">:</span> <span class="n">ApiController</span> <span class="p">{</span> <span class="p">}</span>
+</code></pre></div></div>
+
+<h3 id="the-solution">The Solution</h3>
+
+<p>The solution is this:</p>
+
+<ul>
+  <li>Create an empty attribute. (In his post Seemann calls it a “passive attribute.”) It doesn’t actually do anything. We just put it on controllers and actions.</li>
+  <li>Create an action filter which doesn’t inherit from <code class="highlighter-rouge">ActionFilterAttribute</code>. It’s not an attribute. This class can use constructor injection.</li>
+  <li>Register the action filter as a global filter. It’s going to get called for every request.</li>
+  <li>When the action filter is executing it looks at the controller and/or action to see if the attribute we defined is present. If the attribute isn’t there then the filter doesn’t do anything.</li>
+  <li>Even though the filter is global, it’s really only executing on methods where the attribute is present. So it works just like an <code class="highlighter-rouge">ActionFilterAttribute</code>. It only really applies when the attribute is present.</li>
+</ul>
+
+<h3 id="where-does-the-dependency-injection-container-fit-in">Where Does the Dependency Injection Container Fit In?</h3>
+
+<p>The above only works if our action filter is resolved by our dependency injection container so that the container can inject dependencies into the constructor. How do we do that? By resolving a <em>single instance</em> of the action filter from our container into the <code class="highlighter-rouge">GlobalFilterCollection</code>. I’m not going to gloss over that. First the code for the action filter, and then the configuration.</p>
+
+<h3 id="what-does-the-action-filter-look-like">What Does the Action Filter Look Like?</h3>
+
+<p>Seemann shows an implementation in <a href="http://blog.ploeh.dk/2014/06/13/passive-attributes/">his post</a>. I’m just making two changes:</p>
+
+<ul>
+  <li>I moved the more confusing parts into a generic base class so that I never have to <strike>write</strike> copy/paste the same code again.</li>
+  <li>I’m checking for the attribute on the action and on the controller.</li>
+</ul>
+
+<p>Here’s the base class:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">ActionFilterBehaviorBase</span><span class="p">&lt;</span><span class="n">TAttribute</span><span class="p">&gt;</span> <span class="p">:</span> <span class="n">IActionFilter</span> <span class="k">where</span> <span class="n">TAttribute</span> <span class="p">:</span> <span class="n">Attribute</span>
+    <span class="p">{</span>
+        <span class="k">public</span> <span class="n">Task</span><span class="p">&lt;</span><span class="n">HttpResponseMessage</span><span class="p">&gt;</span> <span class="nf">ExecuteActionFilterAsync</span><span class="p">(</span><span class="n">HttpActionContext</span> <span class="n">actionContext</span><span class="p">,</span> <span class="n">CancellationToken</span> <span class="n">cancellationToken</span><span class="p">,</span> <span class="n">Func</span><span class="p">&lt;</span><span class="n">Task</span><span class="p">&lt;</span><span class="n">HttpResponseMessage</span><span class="p">&gt;&gt;</span> <span class="n">continuation</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nf">ControllerHasAttribute</span><span class="p">(</span><span class="n">actionContext</span><span class="p">)</span> <span class="p">||</span> <span class="nf">ActionHasAttribute</span><span class="p">(</span><span class="n">actionContext</span><span class="p">))</span>
+            <span class="p">{</span>
+                <span class="k">return</span> <span class="nf">ExecuteFilterBehavior</span><span class="p">(</span><span class="n">actionContext</span><span class="p">,</span> <span class="n">cancellationToken</span><span class="p">,</span> <span class="n">continuation</span><span class="p">);</span>
+            <span class="p">}</span>
+            <span class="k">return</span> <span class="nf">continuation</span><span class="p">();</span>
+        <span class="p">}</span>
+
+        <span class="k">protected</span> <span class="k">abstract</span> <span class="n">Task</span><span class="p">&lt;</span><span class="n">HttpResponseMessage</span><span class="p">&gt;</span>  <span class="nf">ExecuteFilterBehavior</span><span class="p">(</span><span class="n">HttpActionContext</span> <span class="n">actionContext</span><span class="p">,</span> <span class="n">CancellationToken</span> <span class="n">cancellationToken</span><span class="p">,</span>
+            <span class="n">Func</span><span class="p">&lt;</span><span class="n">Task</span><span class="p">&lt;</span><span class="n">HttpResponseMessage</span><span class="p">&gt;&gt;</span> <span class="n">continuation</span><span class="p">);</span>
+
+        <span class="k">public</span> <span class="k">virtual</span> <span class="kt">bool</span> <span class="n">AllowMultiple</span> <span class="p">{</span> <span class="k">get</span><span class="p">;</span> <span class="p">}</span> <span class="p">=</span> <span class="k">false</span><span class="p">;</span>
+
+        <span class="k">private</span> <span class="kt">bool</span> <span class="nf">ControllerHasAttribute</span><span class="p">(</span><span class="n">HttpActionContext</span> <span class="n">actionContext</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="k">return</span> <span class="n">actionContext</span>
+                    <span class="p">.</span><span class="n">ControllerContext</span><span class="p">.</span><span class="n">Controller</span><span class="p">.</span><span class="nf">GetType</span><span class="p">()</span>
+                    <span class="p">.</span><span class="nf">GetCustomAttributes</span><span class="p">(</span><span class="k">false</span><span class="p">)</span>
+                    <span class="p">.</span><span class="nf">Any</span><span class="p">(</span><span class="n">attribute</span> <span class="p">=&gt;</span> <span class="n">attribute</span><span class="p">.</span><span class="nf">GetType</span><span class="p">().</span><span class="nf">IsAssignableFrom</span><span class="p">(</span><span class="k">typeof</span><span class="p">(</span><span class="n">TAttribute</span><span class="p">)));</span>
+        <span class="p">}</span>
+
+        <span class="k">private</span> <span class="kt">bool</span> <span class="nf">ActionHasAttribute</span><span class="p">(</span><span class="n">HttpActionContext</span> <span class="n">actionContext</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="k">return</span> <span class="n">actionContext</span>
+                <span class="p">.</span><span class="n">ActionDescriptor</span>
+                <span class="p">.</span><span class="n">GetCustomAttributes</span><span class="p">&lt;</span><span class="n">TAttribute</span><span class="p">&gt;()</span>
+                <span class="p">.</span><span class="nf">Any</span><span class="p">();</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>It overrides <code class="highlighter-rouge">ExecuteActionFilterAsync</code> and does two things:</p>
+
+<ul>
+  <li>It checks for the attribute (<code class="highlighter-rouge">TAttribute</code>)</li>
+  <li>It executes its own custom behavior only if the attribute is found on the controller or action.</li>
+</ul>
+
+<p>Here’s how it’s used:</p>
+
+<p>First, an empty (passive) attribute:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="p">[</span><span class="nf">AttributeUsage</span><span class="p">(</span><span class="n">AttributeTargets</span><span class="p">.</span><span class="n">Class</span> <span class="p">|</span> <span class="n">AttributeTargets</span><span class="p">.</span><span class="n">Method</span><span class="p">)]</span>
+    <span class="k">public</span> <span class="k">class</span> <span class="nc">MyCustomFilterAttribute</span> <span class="p">:</span> <span class="n">Attribute</span> <span class="p">{</span> <span class="p">}</span>
+</code></pre></div></div>
+
+<p>We can put that on a controller or action, but by itself it won’t do anything.</p>
+
+<p>Next, the action filter:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">MyCustomFilterBehavior</span> <span class="p">:</span> <span class="n">ActionFilterBehaviorBase</span><span class="p">&lt;</span><span class="n">MyCustomFilterAttribute</span><span class="p">&gt;</span>
+    <span class="p">{</span>
+        <span class="k">protected</span> <span class="k">override</span> <span class="n">Task</span><span class="p">&lt;</span><span class="n">HttpResponseMessage</span><span class="p">&gt;</span> <span class="nf">ExecuteFilterBehavior</span><span class="p">(</span><span class="n">HttpActionContext</span> <span class="n">actionContext</span><span class="p">,</span> <span class="n">CancellationToken</span> <span class="n">cancellationToken</span><span class="p">,</span> <span class="n">Func</span><span class="p">&lt;</span><span class="n">Task</span><span class="p">&lt;</span><span class="n">HttpResponseMessage</span><span class="p">&gt;&gt;</span> <span class="n">continuation</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="c1">//The custom behavior of the filter goes here. This is only executed if</span>
+            <span class="c1">//MyCustomFilterAttribute is found.</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>It’s as easy to write as an “ordinary” filter that inherits from <code class="highlighter-rouge">ActionFilterAttribute</code>.</p>
+
+<h3 id="how-does-the-action-filter-get-resolved-by-the-container">How Does the Action Filter Get Resolved by the Container?</h3>
+
+<p>There are different ways to arrange this. To be honest, I didn’t overthink it. What matters most is that it’s taking place in the composition root (at application startup.) We’re configuring up front and from then on nothing in the code is referencing the container. Here’s what I did.</p>
+
+<p>I added another method to <code class="highlighter-rouge">FilterConfig</code> for registering global filters that were resolved from the container:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">FilterConfig</span>
+    <span class="p">{</span>
+        <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> <span class="nf">RegisterGlobalFilters</span><span class="p">(</span><span class="n">GlobalFilterCollection</span> <span class="n">filters</span><span class="p">)</span> <span class="c1">//Existing method</span>
+        <span class="p">{</span>
+            <span class="n">filters</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="k">new</span> <span class="nf">HandleErrorAttribute</span><span class="p">());</span>
+        <span class="p">}</span>
+
+        <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> <span class="nf">RegisterGlobalFiltersWithDependencies</span><span class="p">(</span><span class="n">HttpFilterCollection</span> <span class="n">filters</span><span class="p">,</span>
+            <span class="n">IUnityContainer</span> <span class="n">container</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">filters</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="n">container</span><span class="p">.</span><span class="n">Resolve</span><span class="p">&lt;</span><span class="n">MyCustomFilterBehavior</span><span class="p">&gt;());</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>Then I call that method from Global.asax in <code class="highlighter-rouge">Application_Start()</code>:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="k">protected</span> <span class="k">void</span> <span class="nf">Application_Start</span><span class="p">()</span>
+        <span class="p">{</span>
+            <span class="kt">var</span> <span class="n">container</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">UnityContainer</span><span class="p">();</span>
+
+            <span class="n">UnityConfig</span><span class="p">.</span><span class="nf">RegisterComponents</span><span class="p">(</span><span class="n">container</span><span class="p">);</span>
+            <span class="n">GlobalConfiguration</span><span class="p">.</span><span class="nf">Configure</span><span class="p">(</span><span class="n">WebApiConfig</span><span class="p">.</span><span class="n">Register</span><span class="p">);</span>
+
+            <span class="n">FilterConfig</span><span class="p">.</span><span class="nf">RegisterGlobalFiltersWithDependencies</span><span class="p">(</span><span class="n">GlobalConfiguration</span><span class="p">.</span><span class="n">Configuration</span><span class="p">.</span><span class="n">Filters</span><span class="p">,</span> <span class="n">container</span><span class="p">);</span>
+        <span class="p">}</span>
+</code></pre></div></div>
+
+<p>What if <code class="highlighter-rouge">MyCustomFilterBehavior</code> has dependencies that need to be transient? Then it would still be a singleton, but it would depend on an abstract factory so that those dependencies would be resolved each time the behavior executed.</p>
+
+<h3 id="did-i-miss-anything">Did I Miss Anything?</h3>
+
+<p>A pet peeve of mine is that technical explanations on any subject often gloss over some important detail, assuming that you already know it, or perhaps just forgetting it. As in the case of how to resolve the filter from the container, I’d rather show a less-than-perfect example than none at all, because then you have something to start from and you can change it.</p>
+
+<p>But if I missed anything, send me an email, or perhaps send me an email and post a question on <a href="http://stackoverflow.com/">stackoverflow</a> so that I can answer it there and other people can offer ideas.</p>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>

@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>.NET Event Bus - Dependency Injection Friendly and Agnostic</title>
+    <meta name="description" content="Update - The source code is available on GitHub.">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2016/04/01/event-bus-implementation.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">.NET Event Bus - Dependency Injection Friendly and Agnostic</h1>
+    <p class="post-meta"><time datetime="2016-04-01T07:20:58-04:00" itemprop="datePublished">Apr 1, 2016</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>Update - The source code is <a href="https://github.com/scotthannen/PlasticFloor.EventBus">available on GitHub</a>.</p>
+
+<p>An event bus is a useful way to decouple events from handlers. Instead of handlers subscribing to numerous publishers they subscribe to a <em>type</em> of event. The subscriber may not need to know anything about source of the event. The event itself may contain all the subscriber needs.</p>
+
+<p>For example, suppose you have an application that accepts orders for products. Every time an order is placed you must</p>
+
+<ul>
+  <li>Log a record of the order details</li>
+  <li>Send notifications when certain types of products are ordered</li>
+  <li>Decrement inventory</li>
+  <li>Send a confirmation email</li>
+</ul>
+
+<p>The class that submits the order doesn’t need to know about any of those actions. And the classes that perform those actions are interested in the order itself, not in the class that submitted it.</p>
+
+<p>The domain event pattern allows any class that submits an order to call</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="n">_eventBus</span><span class="p">.</span><span class="nf">Raise</span><span class="p">(</span><span class="k">new</span> <span class="nf">OrderSubmittedEvent</span><span class="p">(</span><span class="n">order</span><span class="p">));</span>
+</code></pre></div></div>
+
+<p>and then any number of classes that implement <code class="highlighter-rouge">IEventHander&lt;OrderSubmittedEvent&gt;</code> can receive and handle the event.</p>
+
+<p>There are plenty of event bus implementations. I wanted mine to work well with a dependency injection container so that I can resolve event handlers from that container. But I also didn’t want it to be coupled to any one DI framework. Here’s my implementation. (Perhaps I should stick this on GitHub.)</p>
+
+<h2 id="event-bus-interfaces-and-basic-implementation">Event Bus Interfaces and Basic Implementation</h2>
+
+<p>First are the interfaces and a few common classes. I like these to be in a separate assembly from any DI-specific code. Then I can adapt to the DI container I’m going to use. (I prefer Windsor.)</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="c1">// Event bus interface for injecting into classes</span>
+        <span class="k">public</span> <span class="k">interface</span> <span class="nc">IEventBus</span>
+        <span class="p">{</span>
+            <span class="k">void</span> <span class="n">Raise</span><span class="p">&lt;</span><span class="n">TEvent</span><span class="p">&gt;(</span><span class="n">TEvent</span> <span class="n">@event</span><span class="p">)</span> <span class="k">where</span> <span class="n">TEvent</span> <span class="p">:</span> <span class="n">IEvent</span><span class="p">;</span>
+            <span class="k">void</span> <span class="n">RaiseSafely</span><span class="p">&lt;</span><span class="n">TEvent</span><span class="p">&gt;(</span><span class="n">TEvent</span> <span class="n">@event</span><span class="p">)</span> <span class="k">where</span> <span class="n">TEvent</span> <span class="p">:</span> <span class="n">IEvent</span><span class="p">;</span>
+        <span class="p">}</span>
+
+        <span class="c1">// Marker interface for events. Technically this isn't absolutely</span>
+        <span class="c1">// necessary. I'm on the fence. But I like indicating that a class</span>
+        <span class="c1">// will be used for this purpose.</span>
+        <span class="k">public</span> <span class="k">interface</span> <span class="nc">IEvent</span>
+        <span class="p">{}</span>
+
+        <span class="k">public</span> <span class="k">interface</span> <span class="nc">IEventHandler</span><span class="p">&lt;</span><span class="k">in</span> <span class="n">TEvent</span><span class="p">&gt;</span> <span class="k">where</span> <span class="n">TEvent</span> <span class="p">:</span> <span class="n">IEvent</span>
+        <span class="p">{</span>
+            <span class="k">void</span> <span class="nf">HandleEvent</span><span class="p">(</span><span class="n">TEvent</span> <span class="n">e</span><span class="p">);</span>
+        <span class="p">}</span>
+
+        <span class="c1">// This is what will enable integration of DI containers. I can write </span>
+        <span class="c1">// implementations that resolve event handlers from a container.</span>
+        <span class="k">public</span> <span class="k">interface</span> <span class="nc">IHandlerProvider</span>
+        <span class="p">{</span>
+            <span class="n">IEnumerable</span><span class="p">&lt;</span><span class="n">IEventHandler</span><span class="p">&lt;</span><span class="n">TEvent</span><span class="p">&gt;&gt;</span> <span class="n">GetHandlers</span><span class="p">&lt;</span><span class="n">TEvent</span><span class="p">&gt;()</span> <span class="k">where</span> <span class="n">TEvent</span> <span class="p">:</span> <span class="n">IEvent</span><span class="p">;</span>
+            <span class="k">void</span> <span class="nf">ReleaseHandler</span><span class="p">(</span><span class="kt">object</span> <span class="n">handler</span> <span class="p">);</span>
+        <span class="p">}</span>
+
+        <span class="k">public</span> <span class="k">delegate</span> <span class="k">void</span> <span class="n">EventHandlerDelegate</span><span class="p">&lt;</span><span class="k">in</span> <span class="n">TEvent</span><span class="p">&gt;(</span><span class="n">TEvent</span> <span class="n">e</span><span class="p">)</span> <span class="k">where</span> <span class="n">TEvent</span> <span class="p">:</span> <span class="n">IEvent</span><span class="p">;</span>
+
+        <span class="c1">// The only predefined event I use</span>
+        <span class="k">public</span> <span class="k">class</span> <span class="nc">ExceptionEvent</span> <span class="p">:</span> <span class="n">IEvent</span>
+        <span class="p">{</span>
+            <span class="k">private</span> <span class="k">readonly</span> <span class="n">Exception</span> <span class="n">_exception</span><span class="p">;</span>
+
+            <span class="k">public</span> <span class="n">Exception</span> <span class="n">Exception</span> <span class="p">{</span> <span class="k">get</span> <span class="p">{</span> <span class="k">return</span> <span class="n">_exception</span><span class="p">;</span> <span class="p">}</span> <span class="p">}</span>
+
+            <span class="k">public</span> <span class="nf">ExceptionEvent</span><span class="p">(</span><span class="n">Exception</span> <span class="n">exception</span><span class="p">,</span> <span class="kt">string</span> <span class="n">message</span> <span class="p">=</span> <span class="k">null</span><span class="p">)</span>
+            <span class="p">{</span>
+                <span class="k">if</span><span class="p">(</span><span class="kt">string</span><span class="p">.</span><span class="nf">IsNullOrEmpty</span><span class="p">(</span><span class="n">message</span><span class="p">))</span>
+                    <span class="n">_exception</span> <span class="p">=</span> <span class="n">exception</span><span class="p">;</span>
+                <span class="k">else</span>
+                    <span class="n">_exception</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">Exception</span><span class="p">(</span><span class="n">message</span><span class="p">,</span> <span class="n">exception</span><span class="p">);</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+
+        <span class="c1">// The actual event bus</span>
+        <span class="k">public</span> <span class="k">class</span> <span class="nc">EventBus</span> <span class="p">:</span> <span class="n">IEventBus</span>
+        <span class="p">{</span>
+            <span class="k">private</span> <span class="k">readonly</span> <span class="n">Dictionary</span><span class="p">&lt;</span><span class="n">Type</span><span class="p">,</span> <span class="n">List</span><span class="p">&lt;</span><span class="n">Delegate</span><span class="p">&gt;&gt;</span> <span class="n">_handlers</span> <span class="p">=</span> <span class="k">new</span> <span class="n">Dictionary</span><span class="p">&lt;</span><span class="n">Type</span><span class="p">,</span> <span class="n">List</span><span class="p">&lt;</span><span class="n">Delegate</span><span class="p">&gt;&gt;();</span>
+            <span class="k">private</span> <span class="k">readonly</span> <span class="n">List</span><span class="p">&lt;</span><span class="n">IHandlerProvider</span><span class="p">&gt;</span> <span class="n">_handlerProviders</span> <span class="p">=</span> <span class="k">new</span> <span class="n">List</span><span class="p">&lt;</span><span class="n">IHandlerProvider</span><span class="p">&gt;();</span>
+
+            <span class="k">public</span> <span class="k">void</span> <span class="nf">RegisterProvider</span><span class="p">(</span><span class="n">IHandlerProvider</span> <span class="n">handlerProvider</span><span class="p">)</span>
+            <span class="p">{</span>
+                <span class="n">_handlerProviders</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="n">handlerProvider</span><span class="p">);</span>
+            <span class="p">}</span>
+
+            <span class="k">public</span> <span class="k">void</span> <span class="n">Register</span><span class="p">&lt;</span><span class="n">TEvent</span><span class="p">&gt;(</span><span class="k">params</span> <span class="n">EventHandlerDelegate</span><span class="p">&lt;</span><span class="n">TEvent</span><span class="p">&gt;[]</span> <span class="n">handlers</span><span class="p">)</span> <span class="k">where</span> <span class="n">TEvent</span> <span class="p">:</span> <span class="n">IEvent</span>
+            <span class="p">{</span>
+                <span class="k">if</span> <span class="p">(!</span><span class="n">_handlers</span><span class="p">.</span><span class="nf">ContainsKey</span><span class="p">(</span><span class="k">typeof</span><span class="p">(</span><span class="n">TEvent</span><span class="p">)))</span> <span class="n">_handlers</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="k">typeof</span><span class="p">(</span><span class="n">TEvent</span><span class="p">),</span> <span class="k">new</span> <span class="n">List</span><span class="p">&lt;</span><span class="n">Delegate</span><span class="p">&gt;());</span>
+                <span class="k">foreach</span> <span class="p">(</span><span class="kt">var</span> <span class="n">handler</span> <span class="k">in</span> <span class="n">handlers</span><span class="p">)</span>
+                    <span class="n">_handlers</span><span class="p">[</span><span class="k">typeof</span><span class="p">(</span><span class="n">TEvent</span><span class="p">)].</span><span class="nf">Add</span><span class="p">(</span><span class="n">handler</span><span class="p">);</span>
+            <span class="p">}</span>
+
+            <span class="k">public</span> <span class="k">void</span> <span class="n">Handle</span><span class="p">&lt;</span><span class="n">TEvent</span><span class="p">&gt;(</span><span class="n">TEvent</span> <span class="n">e</span><span class="p">)</span> <span class="k">where</span> <span class="n">TEvent</span> <span class="p">:</span> <span class="n">IEvent</span>
+            <span class="p">{</span>
+                <span class="n">Contract</span><span class="p">.</span><span class="nf">Requires</span><span class="p">(</span><span class="n">e</span> <span class="p">!=</span> <span class="k">null</span><span class="p">);</span>
+                <span class="nf">HandleWithRegisteredDelegates</span><span class="p">(</span><span class="n">e</span><span class="p">);</span>
+                <span class="nf">HandleWithHandlerProviders</span><span class="p">(</span><span class="n">e</span><span class="p">);</span>
+            <span class="p">}</span>
+
+            <span class="k">private</span> <span class="k">void</span> <span class="n">HandleWithRegisteredDelegates</span><span class="p">&lt;</span><span class="n">TEvent</span><span class="p">&gt;(</span><span class="n">TEvent</span> <span class="n">e</span><span class="p">,</span> <span class="kt">bool</span> <span class="n">safe</span><span class="p">=</span><span class="k">false</span><span class="p">)</span> <span class="k">where</span> <span class="n">TEvent</span> <span class="p">:</span> <span class="n">IEvent</span>
+            <span class="p">{</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">_handlers</span><span class="p">.</span><span class="nf">ContainsKey</span><span class="p">(</span><span class="k">typeof</span> <span class="p">(</span><span class="n">TEvent</span><span class="p">)))</span>
+                    <span class="n">_handlers</span><span class="p">[</span><span class="k">typeof</span> <span class="p">(</span><span class="n">TEvent</span><span class="p">)].</span><span class="nf">ForEach</span><span class="p">(</span><span class="n">h</span> <span class="p">=&gt;</span> <span class="nf">ExecuteHandler</span><span class="p">(((</span><span class="n">EventHandlerDelegate</span><span class="p">&lt;</span><span class="n">TEvent</span><span class="p">&gt;)</span> <span class="n">h</span><span class="p">),</span> <span class="n">e</span><span class="p">,</span> <span class="n">safe</span><span class="p">));</span>
+            <span class="p">}</span>
+
+            <span class="k">private</span> <span class="k">void</span> <span class="n">HandleWithHandlerProviders</span><span class="p">&lt;</span><span class="n">TEvent</span><span class="p">&gt;(</span><span class="n">TEvent</span> <span class="n">e</span><span class="p">,</span> <span class="kt">bool</span> <span class="n">safe</span> <span class="p">=</span> <span class="k">false</span><span class="p">)</span> <span class="k">where</span> <span class="n">TEvent</span> <span class="p">:</span> <span class="n">IEvent</span>
+            <span class="p">{</span>
+                <span class="n">_handlerProviders</span><span class="p">.</span><span class="nf">ForEach</span><span class="p">(</span><span class="n">handlerProvider</span> <span class="p">=&gt;</span>
+              <span class="p">{</span>
+                  <span class="kt">var</span> <span class="n">providedHandlers</span> <span class="p">=</span> <span class="n">handlerProvider</span><span class="p">.</span><span class="n">GetHandlers</span><span class="p">&lt;</span><span class="n">TEvent</span><span class="p">&gt;();</span>
+                  <span class="k">foreach</span> <span class="p">(</span><span class="kt">var</span> <span class="n">providedHandler</span> <span class="k">in</span> <span class="n">providedHandlers</span><span class="p">)</span>
+                  <span class="p">{</span>
+                      <span class="nf">ExecuteHandler</span><span class="p">(</span><span class="n">providedHandler</span><span class="p">.</span><span class="n">HandleEvent</span><span class="p">,</span> <span class="n">e</span><span class="p">,</span> <span class="n">safe</span><span class="p">);</span>
+                      <span class="n">handlerProvider</span><span class="p">.</span><span class="nf">ReleaseHandler</span><span class="p">(</span><span class="n">providedHandler</span><span class="p">);</span>
+                  <span class="p">}</span>
+              <span class="p">});</span>
+            <span class="p">}</span>
+
+            <span class="k">private</span> <span class="k">void</span> <span class="n">ExecuteHandler</span><span class="p">&lt;</span><span class="n">TEvent</span><span class="p">&gt;(</span><span class="n">EventHandlerDelegate</span><span class="p">&lt;</span><span class="n">TEvent</span><span class="p">&gt;</span> <span class="n">handler</span><span class="p">,</span> <span class="n">TEvent</span> <span class="n">e</span><span class="p">,</span> <span class="kt">bool</span> <span class="n">safe</span><span class="p">)</span> <span class="k">where</span> <span class="n">TEvent</span> <span class="p">:</span> <span class="n">IEvent</span>
+            <span class="p">{</span>
+                <span class="k">if</span> <span class="p">(</span><span class="n">safe</span><span class="p">)</span>
+                    <span class="k">try</span>
+                    <span class="p">{</span>
+                        <span class="n">handler</span><span class="p">.</span><span class="nf">Invoke</span><span class="p">(</span><span class="n">e</span><span class="p">);</span>
+                    <span class="p">}</span>
+                    <span class="k">catch</span> <span class="p">(</span><span class="n">Exception</span> <span class="n">ex</span><span class="p">)</span>
+                    <span class="p">{</span>
+                        <span class="k">try</span>
+                        <span class="p">{</span>
+                            <span class="nf">Handle</span><span class="p">(</span><span class="k">new</span> <span class="nf">ExceptionEvent</span><span class="p">(</span><span class="n">ex</span><span class="p">));</span>
+                        <span class="p">}</span>
+                        <span class="k">catch</span> <span class="p">{</span> <span class="p">}</span>
+                    <span class="p">}</span>
+                <span class="k">else</span>
+                    <span class="n">handler</span><span class="p">.</span><span class="nf">Invoke</span><span class="p">(</span><span class="n">e</span><span class="p">);</span>
+            <span class="p">}</span>
+
+            <span class="k">private</span> <span class="k">void</span> <span class="n">Handle</span><span class="p">&lt;</span><span class="n">TEvent</span><span class="p">&gt;(</span><span class="n">TEvent</span> <span class="n">e</span><span class="p">,</span> <span class="kt">bool</span> <span class="n">safe</span><span class="p">)</span> <span class="k">where</span> <span class="n">TEvent</span> <span class="p">:</span> <span class="n">IEvent</span>
+            <span class="p">{</span>
+                <span class="n">Contract</span><span class="p">.</span><span class="nf">Requires</span><span class="p">(</span><span class="n">e</span> <span class="p">!=</span> <span class="k">null</span><span class="p">);</span>
+                <span class="nf">HandleWithRegisteredDelegates</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">safe</span><span class="p">);</span>
+                <span class="nf">HandleWithHandlerProviders</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="n">safe</span><span class="p">);</span>
+            <span class="p">}</span>
+
+            <span class="k">public</span> <span class="k">void</span> <span class="n">Raise</span><span class="p">&lt;</span><span class="n">TEvent</span><span class="p">&gt;(</span><span class="n">TEvent</span> <span class="n">e</span><span class="p">)</span> <span class="k">where</span> <span class="n">TEvent</span> <span class="p">:</span> <span class="n">IEvent</span>
+            <span class="p">{</span>
+                <span class="n">Contract</span><span class="p">.</span><span class="nf">Requires</span><span class="p">(</span><span class="n">e</span> <span class="p">!=</span> <span class="k">null</span><span class="p">);</span>
+                <span class="nf">Handle</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="k">false</span><span class="p">);</span>
+            <span class="p">}</span>
+
+            <span class="k">public</span> <span class="k">void</span> <span class="n">RaiseSafely</span><span class="p">&lt;</span><span class="n">TEvent</span><span class="p">&gt;(</span><span class="n">TEvent</span> <span class="n">e</span><span class="p">)</span> <span class="k">where</span> <span class="n">TEvent</span> <span class="p">:</span> <span class="n">IEvent</span>
+            <span class="p">{</span>
+                <span class="n">Contract</span><span class="p">.</span><span class="nf">Requires</span><span class="p">(</span><span class="n">e</span> <span class="p">!=</span> <span class="k">null</span><span class="p">);</span>
+                <span class="nf">Handle</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="k">true</span><span class="p">);</span>
+            <span class="p">}</span>
+
+            <span class="k">public</span> <span class="kt">bool</span> <span class="n">HasHandler</span><span class="p">&lt;</span><span class="n">TEvent</span><span class="p">&gt;()</span> <span class="k">where</span> <span class="n">TEvent</span> <span class="p">:</span> <span class="n">IEvent</span>
+            <span class="p">{</span>
+                <span class="k">return</span> <span class="n">_handlers</span><span class="p">.</span><span class="nf">ContainsKey</span><span class="p">(</span><span class="k">typeof</span><span class="p">(</span><span class="n">TEvent</span><span class="p">))</span>
+                       <span class="p">||</span> <span class="n">_handlerProviders</span><span class="p">.</span><span class="nf">Any</span><span class="p">(</span><span class="n">h</span> <span class="p">=&gt;</span> <span class="n">h</span><span class="p">.</span><span class="n">GetHandlers</span><span class="p">&lt;</span><span class="n">TEvent</span><span class="p">&gt;().</span><span class="nf">Any</span><span class="p">());</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+</code></pre></div></div>
+
+<p>The <code class="highlighter-rouge">Register</code> method allows registering a delegate to handle an event. It’s there but I never use it. Instead I use <code class="highlighter-rouge">RegisterProvider</code> which allows me to add a DI-specific <code class="highlighter-rouge">IHandlerProvider</code>.</p>
+
+<p>When an event is raised by calling <code class="highlighter-rouge">Raise</code> or <code class="highlighter-rouge">RaiseSafely</code> then the event is passed to each delegate and to each <code class="highlighter-rouge">IEventHandler</code> returned by the <code class="highlighter-rouge">IHandlerProvider</code>.</p>
+
+<p><code class="highlighter-rouge">RaiseSafely</code> ensures that the event bus will not raise any errors thrown by event handlers. Instead it will raise an <code class="highlighter-rouge">ExceptionEvent</code>. (If an exception handler throws an exception then it eats the exception. Stop the madness.)</p>
+
+<h2 id="windsor-facility">Windsor Facility</h2>
+
+<p>The Winsdsor facility resides in a separate assembly. That way you aren’t forced to reference Windsor just to use the event bus. The facility creates a single instance of <code class="highlighter-rouge">EventBus</code> and registers it to fulfill all requests for <code class="highlighter-rouge">IEventBus</code>.</p>
+
+<p>It also registers its own <code class="highlighter-rouge">HandlerProvider</code> for the <code class="highlighter-rouge">EventBus</code> to use. That <code class="highlighter-rouge">HandlerProvider</code> uses the container to resolve any registered instances of <code class="highlighter-rouge">IEventHander&lt;TEvent&gt;</code>. This is an acceptable use of the container because it’s all done at the composition root and keeps the container hidden from classes outside the assembly.</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="k">public</span> <span class="k">class</span> <span class="nc">DomainEventFacility</span> <span class="p">:</span> <span class="n">AbstractFacility</span>
+        <span class="p">{</span>
+            <span class="k">private</span> <span class="n">HandlerProvider</span> <span class="n">_handlerProvider</span><span class="p">;</span>
+            <span class="k">protected</span> <span class="k">override</span> <span class="k">void</span> <span class="nf">Init</span><span class="p">()</span>
+            <span class="p">{</span>
+                <span class="kt">var</span> <span class="n">eventBus</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">EventBus</span><span class="p">();</span>
+                <span class="n">Kernel</span><span class="p">.</span><span class="nf">Register</span><span class="p">(</span>
+                    <span class="n">Component</span><span class="p">.</span><span class="n">For</span><span class="p">&lt;</span><span class="n">IEventBus</span><span class="p">&gt;()</span>
+                        <span class="p">.</span><span class="nf">Instance</span><span class="p">(</span><span class="n">eventBus</span><span class="p">)</span>
+                        <span class="p">.</span><span class="nf">LifestyleSingleton</span><span class="p">()</span>
+                    <span class="p">);</span>
+                <span class="n">_handlerProvider</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">HandlerProvider</span><span class="p">(</span><span class="n">Kernel</span><span class="p">);</span>
+                <span class="n">eventBus</span><span class="p">.</span><span class="nf">RegisterProvider</span><span class="p">(</span><span class="n">_handlerProvider</span><span class="p">);</span>
+            <span class="p">}</span>
+        <span class="p">}</span>    
+
+        <span class="k">internal</span> <span class="k">class</span> <span class="nc">HandlerProvider</span> <span class="p">:</span> <span class="n">IHandlerProvider</span>
+        <span class="p">{</span>
+            <span class="k">private</span> <span class="k">readonly</span> <span class="n">IKernel</span> <span class="n">_kernel</span><span class="p">;</span>
+            <span class="k">public</span> <span class="nf">HandlerProvider</span><span class="p">(</span><span class="n">IKernel</span> <span class="n">kernel</span><span class="p">)</span>
+            <span class="p">{</span>
+                <span class="n">_kernel</span> <span class="p">=</span> <span class="n">kernel</span><span class="p">;</span>
+            <span class="p">}</span>
+
+            <span class="k">public</span> <span class="n">IEnumerable</span><span class="p">&lt;</span><span class="n">IEventHandler</span><span class="p">&lt;</span><span class="n">TEvent</span><span class="p">&gt;&gt;</span> <span class="n">GetHandlers</span><span class="p">&lt;</span><span class="n">TEvent</span><span class="p">&gt;()</span> <span class="k">where</span> <span class="n">TEvent</span> <span class="p">:</span> <span class="n">IEvent</span>
+            <span class="p">{</span>
+                <span class="k">return</span> <span class="n">_kernel</span><span class="p">.</span><span class="n">ResolveAll</span><span class="p">&lt;</span><span class="n">IEventHandler</span><span class="p">&lt;</span><span class="n">TEvent</span><span class="p">&gt;&gt;();</span>
+            <span class="p">}</span>
+
+            <span class="k">public</span> <span class="k">void</span> <span class="nf">ReleaseHandler</span><span class="p">(</span><span class="kt">object</span> <span class="n">handler</span><span class="p">)</span>
+            <span class="p">{</span>
+                <span class="n">_kernel</span><span class="p">.</span><span class="nf">ReleaseComponent</span><span class="p">(</span><span class="n">handler</span><span class="p">);</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+</code></pre></div></div>
+
+<p>This makes using <code class="highlighter-rouge">IEventBus</code> with the container very easy. You just add the facility as you would any other facility:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>            <span class="n">_container</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">WindsorContainer</span><span class="p">();</span>
+            <span class="n">_container</span><span class="p">.</span><span class="n">AddFacility</span><span class="p">&lt;</span><span class="n">DomainEventFacility</span><span class="p">&gt;();</span>
+</code></pre></div></div>
+
+<p>and then register handlers:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>            <span class="n">_container</span><span class="p">.</span><span class="nf">Register</span><span class="p">(</span>
+                <span class="n">Component</span><span class="p">.</span><span class="n">For</span><span class="p">&lt;</span><span class="n">IEventHandler</span><span class="p">&lt;</span><span class="n">OrderSubmitEvent</span><span class="p">,</span><span class="n">OrderSubmitLog</span><span class="p">&gt;(),</span>
+                <span class="n">Component</span><span class="p">.</span><span class="n">For</span><span class="p">&lt;</span><span class="n">IEventHandler</span><span class="p">&lt;</span><span class="n">OrderSubmitEvent</span><span class="p">,</span><span class="n">OrderSubmitNotifier</span><span class="p">&gt;()</span>
+            <span class="p">);</span>
+</code></pre></div></div>
+
+<p>and they are all triggered with each call to</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="n">_eventBus</span><span class="p">.</span><span class="nf">Raise</span><span class="p">(</span><span class="k">new</span> <span class="nf">OrderSubmitEvent</span><span class="p">(</span><span class="n">order</span><span class="p">));</span>
+</code></pre></div></div>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>

@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>The Liberation of Pure DI (plus a bonus rant about MEF, which is not an IoC container)</title>
+    <meta name="description" content="It’s important to know the distinction between dependency injection and using a dependency injection/IoC container. Dependency injection is writing classes s...">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2018/12/16/liberation-of-pure-di-mef-is-not-ioc.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">The Liberation of Pure DI (plus a bonus rant about MEF, which is not an IoC container)</h1>
+    <p class="post-meta"><time datetime="2018-12-16T04:20:58-05:00" itemprop="datePublished">Dec 16, 2018</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>It’s important to know the distinction between dependency injection and using a dependency injection/IoC container. 
+Dependency injection is writing classes so that they <em>receive</em> dependencies instead of creating them or referencing static classes. 
+A container helps you to create instances of those dependencies.</p>
+
+<p>To illustrate (forgive me, I really need to learn how to be brief and just mention a concept without explaining it):</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">MyClassThatNeedsDependency</span>
+    <span class="p">{</span>
+        <span class="k">private</span> <span class="k">readonly</span> <span class="n">IThingINeed</span> <span class="n">_thing</span><span class="p">;</span>
+
+        <span class="k">public</span> <span class="nf">MyClassThatNeedsDependency</span><span class="p">(</span><span class="n">IThingINeed</span> <span class="n">thing</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">_thing</span> <span class="p">=</span> <span class="n">thing</span><span class="p">;</span> <span class="c1">// dependency injection - good!</span>
+        <span class="p">}</span>
+
+        <span class="k">public</span> <span class="k">void</span> <span class="nf">DoSomething</span><span class="p">()</span>
+        <span class="p">{</span>
+            <span class="n">_thing</span><span class="p">.</span><span class="nf">MakeMagicHappen</span><span class="p">();</span>
+            <span class="kt">var</span> <span class="n">someOtherThing</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">SomeOtherThingINeed</span><span class="p">();</span> <span class="c1">// creates an instance of a concrete </span>
+            <span class="n">someOtherThing</span><span class="p">.</span><span class="nf">MakeOtherMagicHappen</span><span class="p">();</span>          <span class="c1">// implementation - bad</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p><code class="highlighter-rouge">IThingINeed</code> is injected. The class expects an instance supplied to its constructor. Because the class <em>receives</em> an <code class="highlighter-rouge">IThingINeed</code> instead of creating an implementation, it is completely decoupled from any implementation of <code class="highlighter-rouge">IThingINeed</code>. That’s good. When we write unit tests for this class we can mock <code class="highlighter-rouge">IThingINeed</code>.</p>
+
+<p>Then it creates an instance of <code class="highlighter-rouge">SomeOtherThingINeed</code>. That’s potentially bad. Because it does that, this class is tightly coupled to that class. We can’t use or test <code class="highlighter-rouge">MyClassThatNeedsDependency</code> without also using or testing <code class="highlighter-rouge">SomeOtherThingINeed</code>. It’s also harder to change <code class="highlighter-rouge">SomeOtherThingINeed</code>. What if we want to add constructor arguments? That means every class that creates an instance of <code class="highlighter-rouge">SomeOtherThingINeed</code> must be changed to supply those arguments. Those classes will need to know where to get the values for those arguments. The tight coupling becomes even tighter and our code slowly becomes harder to maintain.</p>
+
+<p>That’s dependency injection. We receive dependencies instead of creating them, which frees each class to do its own thing without having to worry about how its dependencies do their things.</p>
+
+<p>An IoC container is a tool that helps us to create instances of classes that employ dependency injection. For example, suppose one class depends on <code class="highlighter-rouge">ISomething</code>, but the implementation of <code class="highlighter-rouge">ISomething</code> is a class that has three more dependencies. And some of those dependencies have dependencies, and so on. The result is that each individual class is simpler in isolation (exactly what we want) but creating an instance of a class is now more complex. A constructor call might look something like this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="n">IHouse</span> <span class="n">house</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">FloorPlan23House</span><span class="p">(</span>
+		<span class="k">new</span> <span class="nf">ElectricalSystem</span><span class="p">(</span>
+			<span class="k">new</span> <span class="nf">GeModel3000WiringPanel</span><span class="p">(),</span> 
+			<span class="k">new</span> <span class="nf">SolarPowerSource</span><span class="p">(</span><span class="k">new</span> <span class="nf">acmeSolarPanelArray</span><span class="p">(</span><span class="n">New</span> <span class="nf">Sun</span><span class="p">()),</span> <span class="k">new</span> <span class="nf">MassiveBattery</span><span class="p">())),</span> 
+		<span class="k">new</span> <span class="nf">Kitchen</span><span class="p">(</span><span class="k">new</span> <span class="nf">MarbleCounterTop</span><span class="p">(</span><span class="k">new</span> <span class="nf">HomeDepotSink</span><span class="p">()....</span>
+</code></pre></div></div>
+
+<p>This could become incomprehensible if you’re working with a large number of classes. An IoC container like Windsor, Autofac, Unity, or Ninject makes it more manageable. You can write code that looks like this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="kt">var</span> <span class="n">container</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">WindsorContainer</span><span class="p">();</span>
+    <span class="n">container</span><span class="p">.</span><span class="nf">Register</span><span class="p">(</span> 
+        <span class="n">Component</span><span class="p">.</span><span class="n">For</span><span class="p">&lt;</span><span class="n">IHouse</span><span class="p">,</span> <span class="n">Floorplan23House</span><span class="p">&gt;(),</span> 
+        <span class="n">Component</span><span class="p">.</span><span class="n">For</span><span class="p">&lt;</span><span class="n">IPowerSupply</span><span class="p">,</span> <span class="n">SolarArray</span><span class="p">&gt;(),</span> 
+        <span class="n">Component</span><span class="p">.</span><span class="n">For</span><span class="p">&lt;</span><span class="n">ISolarPanel</span><span class="p">,</span> <span class="n">Model3000SolarPanel</span><span class="p">&gt;(),</span> 
+        <span class="n">Component</span><span class="p">.</span><span class="n">For</span><span class="p">&lt;</span><span class="n">IBattery</span><span class="p">,</span> <span class="n">MassiveBattery</span><span class="p">&gt;(),</span>
+        <span class="c1">// lots more</span>
+    <span class="p">);</span>
+    <span class="n">IHouse</span> <span class="n">house</span> <span class="p">=</span> <span class="n">container</span><span class="p">.</span><span class="n">Resolve</span><span class="p">&lt;</span><span class="n">IHouse</span><span class="p">&gt;();</span>
+</code></pre></div></div>
+
+<p>As long as you’ve specified which concrete class or instance to use for each type required in a constructor, it calls all the constructors to create new objects, passes them to other constructors, and so on until it has created the “top-level” class you need. If there’s a type you haven’t “registered” it throws a helpful exception that says, “I’m trying to create a class that needs <code class="highlighter-rouge">ISomething</code>, but you haven’t told me what the implementation is.” What’s nice is that you can work with each class within its own context without having to think about details of other classes you don’t care about in that moment. (You can also organize all of this setup code so that it’s easier to manage, and write tests so you don’t get runtime errors. It’s nice if exceptions are helpful, but they’re 100 times more helpful if you catch them in unit tests.)</p>
+
+<h3 id="enter-mef-which-is-not-an-ioc-container">Enter MEF, Which Is Not an IoC Container</h3>
+<p>This brings me to Microsoft’s Managed Extensibility Framework, or MEF. I survived many happy years without it before I found myself working in an environment where it was the only dependency injection container allowed. (If you are familiar with MEF and that statement makes no sense, don’t worry - I’ve caught up with you by the end of this story.) I found this out after writing all of my configuration using Windsor. Fortunately none of my code was coupled in any way to Windsor, so I only needed to change my DI configuration, not my “real” code that did real stuff.</p>
+
+<p>I’m going to be honest and up front about this: I didn’t try extremely hard to figure out how to use MEF like a “normal” dependency injection container so I could write code like in the example above. I gave myself 30 minutes to find it. I’ve worked with a number of IoC containers and although I lean toward Windsor, I like to try others when writing blog posts or answering StackOverflow questions. They’re like Chinese buffets - each is different, but if you’ve been to one you’ll recognize what you see at another. (That’s one of my favorite things about Chinese buffets.) Trust me, 30 minutes is reasonable. Try it. Give yourself 30 minutes to find instructions for using Autofac as an IoC container. You will only need about 30 seconds (because Autofac is an IoC container.)</p>
+
+<p>In 30 minutes I found tons of pages about how to use MEF, but none explaining how to use it as a simple IoC container. I tried the <a href="https://docs.microsoft.com/en-us/dotnet/framework/mef/">official documentation</a> where I found stuff that looked like this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="p">[</span><span class="nf">Import</span><span class="p">(</span><span class="k">typeof</span><span class="p">(</span><span class="n">ICalculator</span><span class="p">))]</span>
+    <span class="k">public</span> <span class="n">ICalculator</span> <span class="n">calculator</span><span class="p">;</span>
+
+    <span class="p">[</span><span class="nf">Export</span><span class="p">(</span><span class="k">typeof</span><span class="p">(</span><span class="n">ICalculator</span><span class="p">))]</span>
+    <span class="k">class</span> <span class="nc">MySimpleCalculator</span> <span class="p">:</span> <span class="n">ICalculator</span>
+    <span class="p">{</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>What… the… actual… Never, ever will I put these attributes on anything. Perhaps there is a parallel universe in which an evil version of myself with a beard and/or eyepatch would put an attribute on a class that implements <code class="highlighter-rouge">ICalculator</code> specifying that, yes, it really does implement <code class="highlighter-rouge">ICalculator</code>, so that some weird voodoo elsewhere can assign a class instance to a public <em>field</em>… wait, this isn’t even constructor injection. It’s <em>property</em> injection! Here are my internal members, publicly exposed and blowing in the wind so that MEF <em>or anything else</em> can set them, and I’ll write my code to behave as if this has happened at some undetermined point in the lifetime of the object! I understand that there are scenarios for this, but given that constructor injection is never even <em>mentioned</em> in this documentation, why would anyone consider MEF as their first choice for implementing it? I’m starting to think that MEF isn’t the problem.</p>
+
+<p>Further down:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="p">[</span><span class="nf">Export</span><span class="p">(</span><span class="k">typeof</span><span class="p">(</span><span class="n">IOperation</span><span class="p">))]</span>
+    <span class="p">[</span><span class="nf">ExportMetadata</span><span class="p">(</span><span class="s">"Symbol"</span><span class="p">,</span> <span class="sc">'+'</span><span class="p">)]</span>
+    <span class="k">class</span> <span class="nc">Add</span><span class="p">:</span> <span class="n">IOperation</span>
+    <span class="p">{</span>
+        <span class="k">public</span> <span class="kt">int</span> <span class="nf">Operate</span><span class="p">(</span><span class="kt">int</span> <span class="n">left</span><span class="p">,</span> <span class="kt">int</span> <span class="n">right</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="k">return</span> <span class="n">left</span> <span class="p">+</span> <span class="n">right</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>Stop, I can’t take it anymore. I’m prepared to accept that this is profoundly ignorant on my part, but I don’t even want to know what <code class="highlighter-rouge">[ExportMetadata("Symbol", '+')]</code> means or what I might have to do elsewhere for it to make sense. I certainly wouldn’t inflict it on the developer who comes after me.</p>
+
+<p>By the way, guess what the compiler does if you place <code class="highlighter-rouge">[Export(typeof(IOperation))]</code> on a class that doesn’t implement <code class="highlighter-rouge">IOperation</code>? If you guessed nothing, that it’s just a way to say that a class implements an interface when it doesn’t so that you can get a runtime error instead of a compiler error, you are a winner.</p>
+
+<p>I’m being a little hard on MEF right now, but here a few points in its defense:</p>
+
+<ul>
+  <li>The <a href="https://docs.microsoft.com/en-us/dotnet/framework/mef/">documentation I referenced</a> does not include the words “dependency injection” or “inversion of control.” I don’t think that’s a mistake.</li>
+  <li>As mentioned, the code samples do not resemble anything one would do with any popular dependency injection container (all of which resemble each other.)</li>
+  <li>Microsoft provides a “normal” container for implementing constructor injection. It’s called <a href="https://github.com/unitycontainer/unity">Unity</a>. And <a href="https://docs.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection?view=aspnetcore-2.2">another one</a> which is the default for ASP.NET core, but you can use it in any type of project. Both of them are explicitly described as tools for implementing dependency injection. I don’t think Microsoft is confused.</li>
+</ul>
+
+<p>Could those clues perhaps indicate that MEF makes a lousy IoC container because <em>it isn’t one</em> and that the real problem is someone thinking not only that it is an IoC container, but that it should be preferred above all others?</p>
+
+<p>I tried to shed some light on this confusion by looking at how MEF is currently used in the code, and found stuff like this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="n">RegistrationBuilder</span> <span class="n">registrations</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">RegistrationBuilder</span><span class="p">();</span>
+    <span class="n">registrations</span><span class="p">.</span><span class="nf">ForTypesMatching</span><span class="p">(</span><span class="n">r</span> <span class="p">=&gt;</span> <span class="n">r</span><span class="p">.</span><span class="n">Name</span><span class="p">.</span><span class="nf">EndsWith</span><span class="p">(</span><span class="s">"Foo"</span><span class="p">))</span>
+        <span class="p">.</span><span class="nf">SetCreationPolicy</span><span class="p">(</span><span class="n">CreationPolicy</span><span class="p">.</span><span class="n">NonShared</span><span class="p">)</span>
+        <span class="p">.</span><span class="nf">ExportInterfaces</span><span class="p">()</span>
+        <span class="p">.</span><span class="nf">Export</span><span class="p">();</span>
+    <span class="n">registrations</span><span class="p">.</span><span class="nf">ForTypesMatching</span><span class="p">(</span><span class="n">r</span> <span class="p">=&gt;</span> <span class="n">r</span><span class="p">.</span><span class="n">Name</span><span class="p">.</span><span class="nf">EndsWith</span><span class="p">(</span><span class="s">"Blarg"</span><span class="p">))</span>
+        <span class="p">.</span><span class="nf">SetCreationPolicy</span><span class="p">(</span><span class="n">CreationPolicy</span><span class="p">.</span><span class="n">NonShared</span><span class="p">)</span>
+        <span class="p">.</span><span class="nf">ExportInterfaces</span><span class="p">()</span>
+        <span class="p">.</span><span class="nf">Export</span><span class="p">();</span>
+    <span class="n">catalog</span><span class="p">.</span><span class="n">Catalogs</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="k">new</span> <span class="nf">AssemblyCatalog</span><span class="p">(</span><span class="k">typeof</span><span class="p">(</span><span class="n">FooBlarg</span><span class="p">).</span><span class="n">Assembly</span><span class="p">,</span> <span class="n">registrations</span><span class="p">));</span>
+</code></pre></div></div>
+
+<p>Let’s break down some of the intriguing questions this raises:</p>
+
+<ul>
+  <li>If you’re wondering whether we’re looking for classes with names ending in <code class="highlighter-rouge">Foo</code> to implement interfaces which also have names ending in <code class="highlighter-rouge">Foo</code>, so am I. I’m about 53% certain that’s correct.</li>
+  <li>How many class implementations in the assembly we’re searching end with <code class="highlighter-rouge">Foo</code> and <code class="highlighter-rouge">Blarg</code>? The answer is two and one, respectively.</li>
+  <li>How do you find out which interfaces and classes this configures? You <em>search the text of your code</em> for <code class="highlighter-rouge">Foo</code> and <code class="highlighter-rouge">Blarg</code>.</li>
+  <li>We already know which interfaces and implementations we want to use (because they are in a class in the same project), so why don’t we at least use their full names instead making developers search for classes that end with a suffix and upon finding them, hope that they have correctly guessed what this code is doing? Perhaps because we saw it in a tutorial and it looked cool?</li>
+  <li>Can you right-click on a class definition to see where it’s used? No, because the class is only instantiated after discovering the type by part of its name.</li>
+  <li>Did I mention that these types are not discovered in a dynamically loaded assembly (the sort of scenario for which MEF exists), but rather exist in the exact same project as the code that “discovers” them (which contains fewer than ten classes, including the one that searches for the other ones?) I didn’t need to, because you probably observed that the above code contains explicit instructions to search for types with names ending in <code class="highlighter-rouge">Blarg</code> <em>only in the assembly containing type <code class="highlighter-rouge">FooBlarg</code></em>, the very type this code is meant to “discover.”</li>
+  <li>Is this like writing code to search for your coffee mug by starting from the current location of your coffee mug and then searching for all coffee mugs that occupy the same physical space? You’re on fire.</li>
+</ul>
+
+<p>Searching an assembly for interfaces and implementations is a perfectly sane approach if you haven’t explicitly referenced the assembly (which assumes that the types aren’t in same project as the DI setup code) and don’t know what types you want to use. (Even in that scenario I wouldn’t search for them by name, because magic strings.) MEF exists for that scenario. It’s called a <em>plugin architecture</em>. Using a plugin architecture to compose several known classes in a single project is not bad code. It is evil code.</p>
+
+<p>So despite my initial reaction, MEF is not the problem. It’s just not meant to be an IoC container. Perhaps <a href="https://blogs.msmvps.com/peterritchie/2010/02/24/mef-is-not-an-ioc-container-but-mef-uses-ioc/">this blog post by a Microsoft MVP</a> entitled “MEF is not An IoC container; but MEF uses IoC” is also a hint. Another is that Googling “.net dependency injection containers” returns numerous lists containing popular libraries like Autofac, Windsor, Ninject, SimpleInjector, and Unity, followed by several others I’ve never heard of before, but not one of which mentions MEF, because <em>MEF is not an IoC container.</em></p>
+
+<p>If you need to select an IoC container as a standard for everyone to use and are considering MEF, Newtonsoft.JSON, EPPlus, or anything else which is not a dependency injection container, please use <a href="https://www.randomlists.com/list-randomizer?items=Spring.NET%0AStructureMap%0ACastle%20Windsor%0AAutofac%0AUnity%0ANinject%0ADryLoc%0ALinFu%0APicoContainer.NET%0AS2Container.Net&amp;qty=1&amp;dup=false">this tool I have configured</a> which will help you select something more suitable than MEF.</p>
+
+<p>And if I’m dead wrong and MEF is meant for general use as an IoC container in common scenarios where we don’t need to discover types and don’t want to plaster our code with redundant attributes, please email me as quickly as possible before something happens to you and that knowledge disappears forever.</p>
+
+<h3 id="saved-by-pure-di">Saved By Pure DI</h3>
+<p>How would I replace Windsor with MEF (which is not an IoC container?) How would I configure named dependencies and abstract factories?</p>
+
+<p>I realized a few things:</p>
+<ul>
+  <li>I was only working with about a dozen types, and of those, the consuming application only needed to interact with a single interface.</li>
+  <li>My classes were stateless, so I didn’t need to worry about using a container to manage object lifetimes.</li>
+  <li>The implementations of my abstract factories looked more complicated than what they needed to be. They weren’t bad, but they would take about three minutes to explain to someone unfamiliar with Windsor, as opposed to the rest of the configuration which someone who had never seen Windsor could understand the moment they saw it, at which point they would immediately understand 80% of how to use Windsor or any other container. I like to make things easy for people, but I also start off assuming that they are as smart and capable as I am. If I know something they don’t, maybe they know three other things I don’t. But I’ve digressed. My abstract factories were unnecessarily complicated.</li>
+</ul>
+
+<p>I tend to use an IoC container out of habit because even with a smaller number of classes I prefer it to calling nested constructors. I also thought that in this case using Windsor for a simple configuration would provide a useful example. But if the only IoC container I can use isn’t an IoC container at all, then perhaps the better choice is no container at all, A.K.A. Pure DI. (It’s also called “Poor Man’s DI,” which implies that it’s always undesirable, that IoC containers aren’t free open-source software, and that all developers are men.)</p>
+
+<p>Remember, dependency injection isn’t using a container. It’s how we write our classes. The classes themselves don’t know whether they’re being created using a container or by calling their constructors the “normal” way. If they do need the container to function then we’ve done something wrong. Poor Man’s DI means that having created classes that rely on dependency injection, we create them the old-fashioned way, without a container.</p>
+
+<p>The result was different from what I’m used to, but all things considered it wasn’t end-of-the-world horrible either. To briefly summarize (and obsfucate) the application receives binary data in a byte array along with a string that indicates what sort of data it has received. It uses the string to determine which implementation of <code class="highlighter-rouge">IFoo</code> should be created to process the data. (That’s where the abstract factory came in.) Here’s the factory implementation which replaces what I had done with Windsor:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">FooFactory</span>
+    <span class="p">{</span>
+        <span class="k">private</span> <span class="k">readonly</span> <span class="n">Dictionary</span><span class="p">&lt;</span><span class="kt">string</span><span class="p">,</span> <span class="n">IFoo</span><span class="p">&gt;</span> <span class="n">_foos</span>
+            <span class="p">=</span> <span class="k">new</span> <span class="n">Dictionary</span><span class="p">&lt;</span><span class="kt">string</span><span class="p">,</span> <span class="n">IFoo</span><span class="p">&gt;(</span><span class="n">StringComparer</span><span class="p">.</span><span class="n">OrdinalIgnoreCase</span><span class="p">);</span>
+
+        <span class="k">public</span> <span class="nf">FooFactory</span><span class="p">()</span>
+        <span class="p">{</span>
+            <span class="c1">// shared</span>
+            <span class="kt">var</span> <span class="n">fooWidget</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">FooWidget</span><span class="p">(</span>
+                <span class="k">new</span> <span class="nf">WidgetProvider</span><span class="p">(</span>
+                    <span class="k">new</span> <span class="nf">WidgetBuilder</span><span class="p">(),</span>
+                    <span class="k">new</span><span class="p">[]</span>
+                    <span class="p">{</span>
+                        <span class="n">TypeConversions</span><span class="p">.</span><span class="n">AdjustIncompatibleTypes</span><span class="p">,</span> <span class="c1">//injecting delegates</span>
+                        <span class="n">TypeConversions</span><span class="p">.</span><span class="n">AdjustInvalidStrings</span>     <span class="c1">//instead of interfaces</span>
+                    <span class="p">}));</span>
+            <span class="kt">var</span> <span class="n">fooMapper</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">FooMapper</span><span class="p">(</span><span class="k">new</span> <span class="nf">BlargFormatter</span><span class="p">(),</span> <span class="k">new</span> <span class="nf">PaulaBeanFormatter</span><span class="p">());</span>
+            <span class="kt">var</span> <span class="n">dataValidator</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">SpecializedFormatDataValidator</span><span class="p">();</span>
+
+            <span class="c1">// Red (the same Foo is used for two data types)</span>
+            <span class="kt">var</span> <span class="n">blueSpecializedFormatReader</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">BlueSpecializedFormatReader</span><span class="p">(</span><span class="n">dataValidator</span><span class="p">);</span>
+            <span class="kt">var</span> <span class="n">redFoo</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">RedFoo</span><span class="p">(</span>
+                <span class="n">blueSpecializedFormatReader</span><span class="p">,</span>
+                <span class="n">fooWidget</span><span class="p">,</span> 
+                <span class="n">fooMapper</span><span class="p">,</span>
+                <span class="n">FooDirectories</span><span class="p">.</span><span class="n">GetDirectory</span><span class="p">);</span>
+            <span class="n">_foos</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="n">FooDataTypes</span><span class="p">.</span><span class="n">RedFooOne</span><span class="p">,</span> <span class="n">redFoo</span><span class="p">);</span>
+            <span class="n">_foos</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="n">FooDataTypes</span><span class="p">.</span><span class="n">RedFooTwo</span><span class="p">,</span> <span class="n">redFoo</span><span class="p">);</span>
+
+            <span class="c1">// Blue</span>
+            <span class="kt">var</span> <span class="n">blueFooReader</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">SpecializedFormatReader</span><span class="p">(</span><span class="n">dataValidator</span><span class="p">);</span>
+            <span class="kt">var</span> <span class="n">blueFoo</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">BlueFoo</span><span class="p">(</span>
+                <span class="k">new</span> <span class="nf">FooTypeSelector</span><span class="p">(),</span>
+                <span class="n">FooDirectories</span><span class="p">.</span><span class="n">GetDirectory</span><span class="p">,</span>
+                <span class="n">blueFooReader</span><span class="p">,</span>
+                <span class="n">fooWidget</span><span class="p">,</span>
+                <span class="n">fooMapper</span><span class="p">);</span>
+            <span class="n">_foos</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="n">FooDataTypes</span><span class="p">.</span><span class="n">BlueFoo</span><span class="p">,</span> <span class="n">blueFoo</span><span class="p">);</span>
+
+            <span class="c1">// Green</span>
+            <span class="kt">var</span> <span class="n">greenFoo</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">GreenFoo</span><span class="p">(</span><span class="n">fooWidget</span><span class="p">,</span> <span class="n">fooMapper</span><span class="p">);</span>
+            <span class="n">_foos</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="n">FooDataTypes</span><span class="p">.</span><span class="n">GreenFoo</span><span class="p">,</span>
+                <span class="n">greenFoo</span><span class="p">);</span>
+        <span class="p">}</span>
+
+        <span class="k">public</span> <span class="n">IFoo</span> <span class="nf">GetFoo</span><span class="p">(</span><span class="kt">string</span> <span class="n">dataType</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">_foos</span><span class="p">.</span><span class="nf">ContainsKey</span><span class="p">(</span><span class="n">dataType</span><span class="p">))</span>
+                <span class="k">return</span> <span class="n">_foos</span><span class="p">[</span><span class="n">dataType</span><span class="p">];</span>
+            <span class="k">throw</span> <span class="k">new</span> <span class="nf">ArgumentException</span><span class="p">(</span><span class="s">$"No foo is specified for data type </span><span class="p">{</span><span class="n">dataType</span><span class="p">}</span><span class="s">"</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>As you can see, I’m creating the various implementations of <code class="highlighter-rouge">IFoo</code> and putting them in a <code class="highlighter-rouge">Dictionary&lt;string, IFoo&gt;</code> so I can call <code class="highlighter-rouge">GetFoo</code> to retrieve the implementation I need at runtime.</p>
+
+<p>To emphasize, this isn’t my first choice. These nested constructor calls look like an example to demonstrate why we use an IoC container instead of doing this. Someone could reasonably be puzzled and wonder why I didn’t. On the other hand:</p>
+<ul>
+  <li>While Windsor or Autofac aren’t hard to understand, reading this doesn’t require anyone to learn anything new. (Composing this with an IoC container so that people could see it and learn something new would be arguably better, but you can’t win them all.)</li>
+  <li>The longest method isn’t that long. If it gets any longer I can easily break it up into smaller methods.</li>
+  <li>I ended up eliminating some slightly overcomplicated abstract factory code and combining my class composition with the factory that produces instances of <code class="highlighter-rouge">IFoo</code>, which meant less code overall.</li>
+  <li>It’s easy to catch missing components in a DI registrations with tests, but now I get instant compiler errors if I miss a constructor argument.</li>
+  <li>If I need to include some other dependency that isn’t created within this factory, I can inject it into the factory, and then into the classes that need it.</li>
+  <li>Both my production code and my integration tests used my Windsor factory to create test subjects. Now they use this factory. I didn’t have to change a thing.</li>
+  <li>I didn’t violate all that is natural and decent by writing evil, fragile code that searches my interfaces and classes to “find” types I already know about.</li>
+</ul>
+
+<p>It wouldn’t take much for this approach to become problematic. For example, what if I needed scopes or to create more than just implementations of <code class="highlighter-rouge">IFoo</code>? I wouldn’t want to make the above code bigger and more complex or have several such “factory” classes. What if I needed to create unrelated class instances that shared certain dependencies? An IoC container makes that easier by creating a dependency once and reusing it wherever it’s needed. But now I’ve proven that my code is decoupled from whatever method I use to compose class instances, so I can change it back again as needed. Someone could even bend time and space to use MEF if they wanted to.</p>
+
+<p>Still, I had fallen into a comfortable rut of always doing things the same way, so it was oddly liberating to realize that my pure DI version was in some ways simpler and better than my Windsor version. It’s nice to take something away and see that you can live without it.</p>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>

@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>Improve Your Stack Overflow Questions With Unit Tests</title>
+    <meta name="description" content="Suppose you’re trying to write code to solve this problem:">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2019/09/02/improve-stack-overflow-questions-unit-tests.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Improve Your Stack Overflow Questions With Unit Tests</h1>
+    <p class="post-meta"><time datetime="2019-09-02T00:00:00-04:00" itemprop="datePublished">Sep 2, 2019</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>Suppose you’re trying to write code to solve this problem:</p>
+
+<blockquote>
+  <p>I’ve got a start date and end date. I want to count the number of times between
+those dates where a given day (like 10) appears.</p>
+</blockquote>
+
+<p>You try writing it, get stuck, and decide to try asking for help on <a href="https://stackoverflow.com/">Stack Overflow</a>. 
+You post the problem above and include the code from your Winforms app, which looks something like this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">public</span> <span class="k">partial</span> <span class="k">class</span> <span class="nc">Form1</span> <span class="p">:</span> <span class="n">Form</span>
+<span class="p">{</span>
+    <span class="k">public</span> <span class="nf">Form1</span><span class="p">()</span>
+    <span class="p">{</span>
+        <span class="nf">InitializeComponent</span><span class="p">();</span>
+    <span class="p">}</span>
+
+    <span class="k">private</span> <span class="k">void</span> <span class="nf">btnCalculate_Click</span><span class="p">(</span><span class="kt">object</span> <span class="n">sender</span><span class="p">,</span> <span class="n">EventArgs</span> <span class="n">e</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="k">try</span>
+        <span class="p">{</span>
+            <span class="kt">var</span> <span class="n">startDate</span> <span class="p">=</span> <span class="n">DateTime</span><span class="p">.</span><span class="nf">Parse</span><span class="p">(</span><span class="n">txtStartDate</span><span class="p">.</span><span class="n">Text</span><span class="p">);</span>
+            <span class="kt">var</span> <span class="n">endDate</span> <span class="p">=</span> <span class="n">DateTime</span><span class="p">.</span><span class="nf">Parse</span><span class="p">(</span><span class="n">txtEndDate</span><span class="p">.</span><span class="n">Text</span><span class="p">);</span>
+            <span class="kt">var</span> <span class="n">day</span> <span class="p">=</span> <span class="kt">int</span><span class="p">.</span><span class="nf">Parse</span><span class="p">(</span><span class="n">txtDay</span><span class="p">.</span><span class="n">Text</span><span class="p">);</span>
+
+            <span class="kt">var</span> <span class="n">numberOfTimesDayHappensInDateRange</span> <span class="p">=</span> <span class="m">0</span><span class="p">;</span>
+
+             <span class="c1">// Some code that tries to calculate this, but isn't getting</span>
+             <span class="c1">// the results you want</span>
+
+            <span class="n">MessageBox</span><span class="p">.</span><span class="nf">Show</span><span class="p">(</span><span class="s">$"The answer is </span><span class="p">{</span><span class="n">numberOfTimesDayHappensInDateRange</span><span class="p">}</span><span class="s">!"</span><span class="p">);</span>
+        <span class="p">}</span>
+        <span class="k">catch</span>
+        <span class="p">{</span>
+            <span class="n">MessageBox</span><span class="p">.</span><span class="nf">Show</span><span class="p">(</span><span class="s">"I think something is wrong with the values you entered!"</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Some variation of the following will likely happen:</p>
+<ul>
+  <li>You’ll get downvoted</li>
+  <li>Your question will get closed</li>
+  <li>You’ll get no response</li>
+  <li>You’ll get answers that don’t relate to your question</li>
+  <li>Someone will leave a comment saying, “I have no idea what you’re trying to do. Can you give an example showing what results you expect?”</li>
+</ul>
+
+<p>We’re sad when that happens. How can we improve our question?
+One approach is to write a unit test that shows our inputs and the results
+we expect.</p>
+
+<p><em>Disclaimer: I asked some other folks on Stack Overflow what they thought of this.
+The response amounted to, “Sure, but no one is going to do that.” And they might be right.
+But that’s okay. I’m an optimist and I like to think this will help someone, even
+if it has nothing to do with asking questions on Stack Overflow.</em></p>
+
+<p>What if we could make this easier to understand by isolating the code that contains the problem from everything else?</p>
+
+<p>We could start by putting just this part of the code in a separate class and method:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> <span class="nc">DateFunctions</span>
+<span class="p">{</span>
+    <span class="k">public</span> <span class="k">static</span> <span class="kt">int</span> <span class="nf">NumberOfTimesDayOfMonthOccursInDateRange</span><span class="p">(</span>
+        <span class="n">DateTime</span> <span class="n">startDate</span><span class="p">,</span> <span class="n">DateTime</span> <span class="n">endDate</span><span class="p">,</span> <span class="kt">int</span> <span class="n">dayOfMonth</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="c1">// Some code that tries to calculate this, but isn't getting</span>
+        <span class="c1">// the results you want</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p><em>In case it’s not obvious yet, this post doesn’t include a working version of this function. This is about how to ask the question,
+not the solution itself.</em></p>
+
+<p>That’s a long function name, isn’t it? But it’s also a lot clearer what it’s supposed to return. If we just called it <code class="highlighter-rouge">NumberOfTimesDayOccursInDateRange</code>
+it might be less obvious that we’re talking about a calendar day (1, 15, 27) and not a day of the week (Monday, Tuesday.)</p>
+
+<p>All we’ve done so far is move the code from one place to another. That’s a start. Now someone who wants to understand the method
+and help us with it doesn’t have to look at all of the extra code. What they’re looking at is just the part we’re trying to figure out.</p>
+
+<p>It might seem obvious to us what results we expect to get for different inputs, but how can we communicate that clearly to someone else?</p>
+
+<p>One way to accomplish that is with one or more unit tests. If we don’t already have a unit test project in our solution, we can add one:</p>
+
+<p>Right-click on the <em>solution</em> and select Add -&gt; New Project… -&gt; Visual C# -&gt; Test -&gt; Unit Test Project (.NET Framework).</p>
+
+<p>There are other options such as NUnit and xUnit, but we’ll just look at Microsoft’s default version. The others do essentially the
+same thing but with additional capabilities.</p>
+
+<p>Our project will contain a single test class with a single unit test, like this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">namespace</span> <span class="nn">UnitTestProject1</span>
+<span class="p">{</span>
+    <span class="p">[</span><span class="n">TestClass</span><span class="p">]</span>
+    <span class="k">public</span> <span class="k">class</span> <span class="nc">UnitTest1</span>
+    <span class="p">{</span>
+        <span class="p">[</span><span class="n">TestMethod</span><span class="p">]</span>
+        <span class="k">public</span> <span class="k">void</span> <span class="nf">TestMethod1</span><span class="p">()</span>
+        <span class="p">{</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>The <code class="highlighter-rouge">[TestClass]</code> attribute indicates that the class contains tests. The <code class="highlighter-rouge">[TestMethod]</code> attribute indicates that the method
+<em>is</em> a test. This is how the test runner knows which parts of the code in this project are tests that we need to run.</p>
+
+<p>For the sake of simplicity, a unit test is a method that <em>passes</em> if it runs without throwing any exceptions, and <em>fails</em> if 
+it throws an exception. We write these methods so that if our code does what we expect it to do, it won’t throw an exception. 
+It will pass. If doesn’t do what we expect, it will throw an exception and fail.</p>
+
+<p>This will be clearer with an example. First, let’s copy our <code class="highlighter-rouge">DateFunctions</code> class into the same file as our test. We don’t have
+to do that. Eventually that class will be in our “real” project - not the test project - and our test project will reference it. 
+But at this step it’s often convenient to have them both in one place. It’s going to help with our Stack Overflow question. This
+is also how I work if I’m answering someone’s question and I want to be sure that my answer works. I just create a test project
+and write both the code and the unit tests.</p>
+
+<p>Here’s what our file looks like with the <code class="highlighter-rouge">DateFunctions</code> class included and a simple unit test:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">[TestClass]</span>
+<span class="k">public</span> <span class="k">class</span> <span class="nc">DateFunctionTests</span>
+<span class="p">{</span>
+    <span class="p">[</span><span class="n">TestMethod</span><span class="p">]</span>
+    <span class="k">public</span> <span class="k">void</span> <span class="nf">NumberOfTimesDayOfMonthOccursInDateRange_returns_correct_result</span><span class="p">()</span>
+    <span class="p">{</span>
+        <span class="kt">var</span> <span class="n">startDate</span> <span class="p">=</span> <span class="n">DateTime</span><span class="p">.</span><span class="nf">Parse</span><span class="p">(</span><span class="s">"1/1/2019"</span><span class="p">);</span>
+        <span class="kt">var</span> <span class="n">endDate</span> <span class="p">=</span> <span class="n">DateTime</span><span class="p">.</span><span class="nf">Parse</span><span class="p">(</span><span class="s">"2/15/2019"</span><span class="p">);</span>
+        <span class="kt">var</span> <span class="n">dayOfMonth</span> <span class="p">=</span> <span class="m">14</span><span class="p">;</span>
+        <span class="kt">var</span> <span class="n">expectedResult</span> <span class="p">=</span> <span class="m">2</span><span class="p">;</span>
+        <span class="kt">var</span> <span class="n">actualResult</span> <span class="p">=</span> <span class="n">DateFunctions</span><span class="p">.</span><span class="nf">NumberOfTimesDayOfMonthOccursInDateRange</span><span class="p">(</span><span class="n">startDate</span><span class="p">,</span> <span class="n">endDate</span><span class="p">,</span> <span class="n">dayOfMonth</span><span class="p">);</span>
+        <span class="n">Assert</span><span class="p">.</span><span class="nf">AreEqual</span><span class="p">(</span><span class="n">expectedResult</span><span class="p">,</span> <span class="n">actualResult</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">public</span> <span class="k">static</span> <span class="k">class</span> <span class="nc">DateFunctions</span>
+<span class="p">{</span>
+    <span class="k">public</span> <span class="k">static</span> <span class="kt">int</span> <span class="nf">NumberOfTimesDayOfMonthOccursInDateRange</span><span class="p">(</span>
+        <span class="n">DateTime</span> <span class="n">startDate</span><span class="p">,</span> <span class="n">DateTime</span> <span class="n">endDate</span><span class="p">,</span> <span class="kt">int</span> <span class="n">dayOfMonth</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="k">return</span> <span class="m">0</span><span class="p">;</span> 
+        <span class="cm">/*
+         * I just put this here so it compiles. This would be your
+         * work in progress code. You've written something. It just
+         * doesn't return the right results.
+         */</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>I made the test a little bit verbose, declaring everything as a variable, to make it easier to follow.
+It shows that we’re going to execute our function with specific inputs, and we know what result
+we expect.</p>
+
+<p>The last statement - <code class="highlighter-rouge">Assert.AreEqual</code> - will check to see if our actual result is the same as our 
+expected result. If it is not, it will throw an exception and the test will fail.</p>
+
+<p>To try it out, right-click on the test class and select <strong>Run Test(s)</strong>. The project will compile, Visual Studio
+will run the test, and a “Test Explorer” window will open showing us the result.</p>
+
+<p>This test will fail, because our function returned <em>0</em>, not the expected result. If we drill down into that
+test result by clicking on the red “X” icons, we’ll eventually see this exception:</p>
+
+<blockquote>
+  <p>Message: Assert.AreEqual failed. Expected:&lt;2&gt;. Actual:&lt;0&gt;.</p>
+</blockquote>
+
+<p>If we figure out how to fix our method so that it returns the correct result, this
+test will no longer fail. Our test results will be green, not red.</p>
+
+<p>If we want to step through the code, we can set breakpoints and then right-click
+and select <strong>Debug Test(s)</strong>. This will enable us to step through the code.</p>
+
+<h3 id="how-this-is-better-so-far">How This Is Better, So Far</h3>
+
+<p>Let’s say that you’re trying over and over again to fix your function. 
+Which is easier:</p>
+<ul>
+  <li>Starting up your Windows Forms app, typing in some values, pressing the button, and looking at the result</li>
+  <li>Running a unit test and seeing if it passes or fails</li>
+</ul>
+
+<p>The unit test is much easier. Perhaps we’ve already caught on that creating a form
+is a horrible way to test. Maybe we tend to use console apps instead. Even still, isn’t running a unit test even easier than that?
+A unit test is a lot like a console app, except that instead of us  <em>looking</em> at the result to see if it’s correct,
+the test already knows what the correct result is that it’s looking for. It’s built into the test.</p>
+
+<p>Imagine if we pasted this code into our Stack Overflow question. It says, in effect,</p>
+<blockquote>
+  <p>Here’s the code I need help with. Here’s a unit test that describes exactly what it should do.</p>
+</blockquote>
+
+<p>If I were trying to help with this question, I would probably start by creating a unit test project,
+pasting this code into it, and writing some unit tests. I would use the unit tests
+to confirm that my solution works. (I want to give you a good answer, which means I’m not going to guess.)</p>
+
+<p>But now, by providing both your code and the unit test, you’ve made it even easier
+to help you. I can paste both the code and the unit test, and all I’ve got to do is
+work with your code to make the unit test pass.</p>
+
+<h3 id="it-gets-even-better">It Gets Even Better</h3>
+
+<p>Do we really trust that our code works as expected because it returns the correct
+result for just one set of inputs? Wouldn’t we rather test it with multiple inputs? Maybe 
+we have some weird edge cases. How do we test this with multiple inputs?</p>
+
+<p>We could copy and paste the test method so that we have several test methods, 
+each with different inputs and expected outputs, and then we could run all of those tests.
+That’s acceptable. That means that we can test our code with a range of inputs
+all at the same time. Imagine trying that with a console app. It would be a pain. 
+Unit tests make it easy.</p>
+
+<p>But there’s an easier approach than creating multiple tests. We can create a
+single test that takes multiple inputs. This is called <em>parameterized test</em>. 
+It might look like this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">[TestClass]</span>
+<span class="k">public</span> <span class="k">class</span> <span class="nc">DateFunctionTests</span>
+<span class="p">{</span>
+    <span class="p">[</span><span class="n">DataTestMethod</span><span class="p">]</span>
+    <span class="p">[</span><span class="nf">DataRow</span><span class="p">(</span><span class="s">"1/1/2019"</span><span class="p">,</span> <span class="s">"2/15/2019"</span><span class="p">,</span> <span class="m">14</span><span class="p">,</span> <span class="m">2</span><span class="p">)]</span>
+    <span class="p">[</span><span class="nf">DataRow</span><span class="p">(</span><span class="s">"1/1/2019"</span><span class="p">,</span> <span class="s">"1/13/2019"</span><span class="p">,</span> <span class="m">14</span><span class="p">,</span> <span class="m">0</span><span class="p">)]</span>
+    <span class="p">[</span><span class="nf">DataRow</span><span class="p">(</span><span class="s">"1/1/2019"</span><span class="p">,</span> <span class="s">"12/31/2019"</span><span class="p">,</span> <span class="m">31</span><span class="p">,</span> <span class="m">7</span><span class="p">)]</span>
+    <span class="k">public</span> <span class="k">void</span> <span class="nf">NumberOfTimesDayOfMonthOccursInDateRange_returns_correct_result</span><span class="p">(</span>
+        <span class="kt">string</span> <span class="n">startDate</span><span class="p">,</span> <span class="kt">string</span> <span class="n">endDate</span><span class="p">,</span> <span class="kt">int</span> <span class="n">dayOfMonth</span><span class="p">,</span> <span class="kt">int</span> <span class="n">expectedResult</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="kt">var</span> <span class="n">actualResult</span> <span class="p">=</span> <span class="n">DateFunctions</span><span class="p">.</span><span class="nf">NumberOfTimesDayOfMonthOccursInDateRange</span><span class="p">(</span>
+            <span class="n">DateTime</span><span class="p">.</span><span class="nf">Parse</span><span class="p">(</span><span class="n">startDate</span><span class="p">),</span> <span class="n">DateTime</span><span class="p">.</span><span class="nf">Parse</span><span class="p">(</span><span class="n">endDate</span><span class="p">),</span> <span class="n">dayOfMonth</span><span class="p">);</span>
+        <span class="n">Assert</span><span class="p">.</span><span class="nf">AreEqual</span><span class="p">(</span><span class="n">expectedResult</span><span class="p">,</span> <span class="n">actualResult</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Each <code class="highlighter-rouge">DataRow</code> attribute contains a set of values - a start date, an end date, a day of the month, 
+and an expected result. Instead of having to write more test methods to test a different
+set of values, we can just add a new data row. The test runner will run the test once
+for each set of values.</p>
+
+<p>Imagine the frustration if we fix the function so that it works with one set of inputs,
+but then returns the wrong results for different inputs. Imagine having to test over and over
+with each set of inputs. Now it’s easy to verify that the function returns the
+correct result for all of the inputs at the same time.</p>
+
+<h3 id="our-improved-question">Our Improved Question</h3>
+<p>Now, instead of posting a bunch of irrelevant code that other people have to read through, 
+we can post this:</p>
+
+<hr />
+
+<p>I’m trying to write a function that returns the number of times a given day of the
+month appears in a date range. Here’s my code, which isn’t working yet, and
+some unit tests that show what the results should be.</p>
+
+<p>Can you help me to find the problem in my code?</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> <span class="nc">DateFunctions</span>
+<span class="p">{</span>
+    <span class="k">public</span> <span class="k">static</span> <span class="kt">int</span> <span class="nf">NumberOfTimesDayOfMonthOccursInDateRange</span><span class="p">(</span>
+        <span class="n">DateTime</span> <span class="n">startDate</span><span class="p">,</span> <span class="n">DateTime</span> <span class="n">endDate</span><span class="p">,</span> <span class="kt">int</span> <span class="n">dayOfMonth</span><span class="p">)</span>
+    <span class="p">{</span>
+       <span class="c1">// Whatever code you have that isn't working right</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="na">[TestClass]</span>
+<span class="k">public</span> <span class="k">class</span> <span class="nc">DateFunctionTests</span>
+<span class="p">{</span>
+    <span class="p">[</span><span class="n">DataTestMethod</span><span class="p">]</span>
+    <span class="p">[</span><span class="nf">DataRow</span><span class="p">(</span><span class="s">"1/1/2019"</span><span class="p">,</span> <span class="s">"2/15/2019"</span><span class="p">,</span> <span class="m">14</span><span class="p">,</span> <span class="m">2</span><span class="p">)]</span>
+    <span class="p">[</span><span class="nf">DataRow</span><span class="p">(</span><span class="s">"1/1/2019"</span><span class="p">,</span> <span class="s">"1/13/2019"</span><span class="p">,</span> <span class="m">14</span><span class="p">,</span> <span class="m">0</span><span class="p">)]</span> 
+    <span class="p">[</span><span class="nf">DataRow</span><span class="p">(</span><span class="s">"1/1/2019"</span><span class="p">,</span> <span class="s">"12/31/2019"</span><span class="p">,</span> <span class="m">31</span><span class="p">,</span> <span class="m">8</span><span class="p">)]</span>
+    <span class="k">public</span> <span class="k">void</span> <span class="nf">NumberOfTimesDayOfMonthOccursInDateRange_returns_correct_result</span><span class="p">(</span>
+        <span class="kt">string</span> <span class="n">startDate</span><span class="p">,</span> <span class="kt">string</span> <span class="n">endDate</span><span class="p">,</span> <span class="kt">int</span> <span class="n">dayOfMonth</span><span class="p">,</span> <span class="kt">int</span> <span class="n">expectedResult</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="kt">var</span> <span class="n">actualResult</span> <span class="p">=</span> <span class="n">DateFunctions</span><span class="p">.</span><span class="nf">NumberOfTimesDayOfMonthOccursInDateRange</span><span class="p">(</span>
+            <span class="n">DateTime</span><span class="p">.</span><span class="nf">Parse</span><span class="p">(</span><span class="n">startDate</span><span class="p">),</span> <span class="n">DateTime</span><span class="p">.</span><span class="nf">Parse</span><span class="p">(</span><span class="n">endDate</span><span class="p">),</span> <span class="n">dayOfMonth</span><span class="p">);</span>
+        <span class="n">Assert</span><span class="p">.</span><span class="nf">AreEqual</span><span class="p">(</span><span class="n">expectedResult</span><span class="p">,</span> <span class="n">actualResult</span><span class="p">);</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+<hr />
+
+<p>You may have seen people on Stack Overflow ask for an <a href="https://stackoverflow.com/help/minimal-reproducible-example">MCVE</a> which
+stands for “Minimal, Complete, Verifiable Example.” In other words, they’re
+asking you to provide just the part of your code that you need help with, not
+all sorts of extraneous details, make sure you don’t leave out the important parts,
+and show how you know whether or not it’s working.</p>
+
+<p>That’s exactly what we’ve accomplished:</p>
+
+<ul>
+  <li><strong>Minimal</strong> - we’ve stripped away all of the code that’s <em>not</em> related to the
+date function.</li>
+  <li><strong>Complete</strong> - the whole date calculation is in that function</li>
+  <li><strong>Verifiable</strong> - the unit test shows both what you expect and how you know if it’s working.</li>
+</ul>
+
+<p>Assuming that you’ve made some effort to write the code - you’re showing your attempt at writing the function - 
+you’ve written the perfect question.</p>
+
+<h3 id="the-best-part">The Best Part</h3>
+<p>The effort that you put into asking this question will make understanding and 
+debugging your code so much easier that you’re far more likely to solve your own
+problem before you even post the question.</p>
+
+<p>These are roughly the same steps that most developers take to make their own problems
+easier to understand and solve. We put code that performs specific functions into separate
+classes and methods so that we can test it in isolation from other code. And then
+we write unit tests to verify that our code does what we think it should do.</p>
+
+<p>We all make mistakes in our code, even in code that should seem trivial. This allows
+us to catch our mistakes more quickly. We can often find our mistakes right after we make them.
+It also means that if we must step through our code in the debugger, we won’t have to step through
+as much of it. Instead of setting breakpoints, starting up an app, and providing inputs just to test some
+tiny piece of code, we can isolate just the part we’re working on.</p>
+
+<p>In the long run this means that we work faster and with greater confidence. If we haven’t worked with unit tests 
+we might expect that writing the extra test code will cause us to work more slowly, but it’s actually the opposite.
+When we subtract the time that we would have spent searching for defects that turn up later, re-reading code we
+wrote days or weeks ago, and stepping through lots of code in the debugger, the net result is that we save lots of time.</p>
+
+<p>It’s not immediate. There is a little bit of a learning curve, and it might slow us down at first. 
+But if you were ever going to a make a leap of faith, this is the one to make. Once you’re on the other side of it, you’ll 
+never want to go back. You might even find yourself wondering how you ever wrote code without unit tests. It’s that good.</p>
+
+<p>You may have read articles critical of unit testing, arguing that we can end up writing way too many useless tests and that 
+it somehow damages the design of our code. There is usually an element of truth to such arguments. We may lose our balance
+at first and veer from writing no tests to writing too many. The quality of our tests might be low. That’s okay. It’s part
+of the learning experience. It helps if we realize that by not writing any unit tests, we’re already at one extreme. We may
+go to the opposite extreme before finding our balance.</p>
+
+<p>As much as this practice has helped me, I still have a great deal to learn about unit testing.</p>
+
+<p>Unit testing is also like a gateway drug that leads to all sorts of improved practices. In this example we had to move code
+out of a Windows Form into its own class so that we could test it. That’s a good habit. Making it possible to test the code 
+improved the design of the code. That pattern repeats. Over time we’re likely to find that arranging our code so that we
+can write tests for it significantly improves the design of our code in other ways.</p>
+
+<hr />
+
+<p>Was the premise of this whole post just a trick to introduce unit tests? Yes and no. I often read Stack Overflow questions
+that would be much easier to understand if they included unit tests to describe the expected results. Sometimes I demonstrate
+the idea by including unit tests in the answer, but explaining how to write tests would be way outside the scope of the
+original question.</p>
+
+<p>At the same time, I’m convinced that most developers who don’t write unit tests would benefit from learning to write them.
+As I hope I’ve demonstrated, they change the way we write our code, making it easier to isolate and solve our own problems.
+We all get stuck and need help. I look things up on Stack Overflow all the time. But this change increases our ability to
+push through problems on our own, increasing both our productivity and our confidence.</p>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>

@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>Depending on Functions Instead of Interfaces - Why and How</title>
+    <meta name="description" content="Here’s a simple, contrived example of a class that depends on an interface, IDoesMath, followed by the same class modified to depend on a function instead. A...">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2018/03/18/depending-on-functions-instead-of-interfaces.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Depending on Functions Instead of Interfaces - Why and How</h1>
+    <p class="post-meta"><time datetime="2018-03-18T07:20:58-04:00" itemprop="datePublished">Mar 18, 2018</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>Here’s a simple, contrived example of a class that depends on an interface, <code class="highlighter-rouge">IDoesMath</code>, followed by the same class modified to depend on a function instead. As you’ll quickly see, there is no <em>immediate</em> benefit. The change doesn’t make this a better class. So are there any benefits to depending on functions rather than interfaces? I think that at least in some cases, depending on functions has potential to improve the long-term maintainability of our code. (Can I be any more careful to qualify that statement?)</p>
+
+<h4 id="depends-on-an-interface">Depends on an interface</h4>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>public class ClassThatDependsOnMath  
+{ 
+    private readonly IDoesMath _math; // interface
+
+    public ClassThatDependsOnMath(IDoesMath math) 
+    {
+        _math = math; 
+    }
+
+    public Single Calculate(Single value1, Single value2)
+    {
+        return _math.DoMath(value1, value2);
+    }
+}
+</code></pre></div></div>
+
+<h4 id="depends-on-a-function">Depends on a function</h4>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>public class ClassThatDependsOnMath
+{
+    private readonly Func&lt;Single, Single, Single&gt; _doMath; // function
+
+    public ClassThatDependsOnMath(Func&lt;Single, Single, Single&gt; doMath)
+    {
+        _doMath = doMath;
+    }
+
+    public int Calculate(Single value1, Single value2)
+    {
+        return _doMath(value1, value2);
+    }
+}
+</code></pre></div></div>
+
+<p>Again, I don’t see a compelling difference. The interface actually makes it a little bit easier to see what the dependency does. (More on that later.) So why would we ever consider the second approach?</p>
+
+<h3 id="how-depending-on-functions-can-make-a-difference">How Depending on Functions Can Make a Difference</h3>
+
+<p>Depending on functions has at least two potential benefits:</p>
+<ul>
+  <li>It enforces the Interface Segregation Principle. You can use some methods of an interface but not others. A function is all-or-nothing. You use it or you don’t.</li>
+  <li>It encourages following the Single Responsibility Principle. That doesn’t exactly translate to smaller classes and smaller methods, but in practice that’s often the outcome.</li>
+</ul>
+
+<p>I’ve seen too many cases where a new method gets added to an existing interface and its implementation(s) because it’s momentarily convenient. Then another gets added, and another, until the interface is full of non-cohesive methods that don’t make sense together, and the classes that implement them are huge. Eventually lots of classes depend on that interface, each using just one or two methods. If we’ve already gone down that dark path then for each class that depends on the interface there’s the risk that someone modifying that class will find a reason to add more methods to the interface. (One window is broken, anarchy ensues.)</p>
+
+<p>That violates the Interface Segregation Principle because now classes depend on the interface but ignore most of its methods. Eventually we’ll need to create a new implementation of the interface for one specific scenario, and we’ll have to implement all of the other methods even though we don’t need them. Or we leave the methods we don’t need unimplemented, but that’s just evil.</p>
+
+<p>Another side effect is that when we write unit tests for classes that depend on the interface we have to figure out which methods it uses so we know which ones to mock. Eventually we end up with mocks for methods we don’t even use. Now our unit tests are hard to read because they’re polluted with code they don’t even need, and we have to maintain them because of changes that don’t actually affect them. (Have you ever changed an interface and found yourself fixing compile errors in two dozen mocks that you may or may not even use because it’s faster than figuring out if you need them? I have.)</p>
+
+<p>Meanwhile, if the interface has grown out of control, its implementation(s) almost certainly violate the Single Responsibility Principle. So do the classes that depend on them. If we’re using constructor injection we can look at a class’s constructor to see what it depends on, and we can tell when we’re adding responsibility because we add more dependencies. Adding new methods to existing interfaces makes that less visible.</p>
+
+<p>Depending on functions doesn’t necessarily prevent all of that, and it’s not the only solution. (Maybe we just need a verb in our interface name so that it more clearly reflects what it should and shouldn’t contain.) But it is a defense that can guide us away from adding bloat to our interfaces and reveal when we’re adding responsibilities to classes.</p>
+
+<p>But how does it impact readability and the way we configure our dependency injection container?</p>
+
+<h3 id="delegate-vs-func-or-action">Delegate vs. Func or Action</h3>
+
+<p>In the example above I showed a class that depends on a math function: <code class="highlighter-rouge">Func&lt;Single, Single, Single&gt;</code>. If we’re doing constructor injection then we’re likely using a dependency injection container. In that case we’re going to run into a few problems:
+What if different classes depend on functions that serve different purposes but have the same signatures?
+Also, our container setup code would be confusing. If we register an implementation of <code class="highlighter-rouge">Func&lt;Single, Single, Single&gt;</code> then nothing tells us what that function does or why something depends on it.</p>
+
+<p>We can solve both problems by declaring delegates and depending on them instead of just function signatures. Now our math example might look like this:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>public delegate int DoMath(Single value1, Single value2);
+
+public class ClassThatDependsOnMath
+{
+    private readonly DoMath _doMath;
+
+    public ClassThatDependsOnMath(DoMath doMath)
+    {
+        _doMath = doMath;
+    }
+
+    public int Calculate(Single value1, Single value2)
+    {
+        return _doMath(value1, value2);
+    }
+}
+</code></pre></div></div>
+
+<p>Now when we register implementations with our containers, we’re registering implementations for <code class="highlighter-rouge">DoMath</code>. It’s explicit, just like when we register interface implementations.</p>
+
+<p>But what does that container registration code look like? I had to know how easy or ugly it might be, so I tested with two popular containers, <a href="https://autofac.org/">Autofac</a> and <a href="http://www.castleproject.org/">Castle Windsor</a>.</p>
+
+<p>In both cases I want to register this delegate</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>public delegate Single DoMath(Single value1, Single value2);
+</code></pre></div></div>
+
+<p>with this implementation:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>public class AddsNumbers 
+{
+    public Single Add(Single value1, Single value2)
+    {
+        return value1 + value2;
+    }
+}
+</code></pre></div></div>
+
+<h3 id="registering-delegates-with-autofac">Registering Delegates With Autofac</h3>
+<p>Assuming that I want to resolve everything from the container (because a class implementation might have its own dependencies to resolve) I need to
+Register the class implementation (just once, not once for each delegate)
+For the delegate, register a function that resolves the class implementation and then returns the desired method.</p>
+
+<p>It looks like this:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>builder.RegisterType&lt;AddsNumbers&gt;();
+builder.Register&lt;DoMath&gt;(c =&gt;
+{
+    var componentContext = c.Resolve&lt;IComponentContext&gt;();
+    var addsNumbers = componentContext.Resolve&lt;AddsNumbers&gt;();
+    return addsNumbers.Add;
+});
+</code></pre></div></div>
+
+<p>Yes, you have to resolve <code class="highlighter-rouge">IComponentContext</code> <em>from</em> <code class="highlighter-rouge">IComponentContext</code>. That’s not pretty, but we can write an extension that makes it better:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>public static class AutofacBuilderExtensions 
+{ 
+    public static IRegistrationBuilder&lt;TDelegate, SimpleActivatorData, SingleRegistrationStyle&gt; RegisterDelegate&lt;TDelegate, TSource&gt;( 
+        this ContainerBuilder builder,  
+        Func&lt;TSource, TDelegate&gt; extractDelegate,  
+        string sourceComponentName = null,  
+        string registeredComponentName = null)  
+        where TDelegate : class
+    {
+        var registrationFunction = new Func&lt;IComponentContext, TDelegate&gt;(context =&gt; 
+        { 
+            var c = context.Resolve&lt;IComponentContext&gt;(); 
+            var source = sourceComponentName == null 
+                ? c.Resolve&lt;TSource&gt;() 
+                : c.ResolveNamed&lt;TSource&gt;(sourceComponentName); 
+            return extractDelegate(source); 
+        }); 
+
+        return registeredComponentName == null ? 
+            builder.Register(registrationFunction) : 
+            builder.Register(registrationFunction) 
+                .Named&lt;TDelegate&gt;(registeredComponentName); 
+    } 
+}
+</code></pre></div></div>
+
+<p>This includes a few extra parameters in case we need to specify a named instance of a dependency to resolve, and/or we want to specify a name for our new component registration. Now the component registration looks like this:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>builder.RegisterType&lt;AddsNumbers&gt;();
+builder.RegisterDelegate&lt;DoMath, AddsNumbers&gt;(addsNumbers =&gt; addsNumbers.Add);
+</code></pre></div></div>
+
+<p>I can live with that, especially if it helps prevent other code maintenance issues.</p>
+
+<h3 id="registering-delegates-with-windsor">Registering Delegates With Windsor</h3>
+
+<p>The process is identical, so I’ll skip straight to the extension methods.</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>public static class WindsorRegistrationExtensions
+{
+    public static ComponentRegistration&lt;TDelegate&gt; RegisterDelegate&lt;TDelegate, TSource&gt;(
+        this IKernel kernel, 
+        Func&lt;TSource, TDelegate&gt; extractDelegate, 
+        string sourceComponentName = null, 
+        string registeredComponentName = null) 
+        where TDelegate : class
+    {
+        var component = Component.For&lt;TDelegate&gt;().UsingFactoryMethod((kernel1, context) =&gt;
+        {
+            var source = sourceComponentName == null ? kernel1.Resolve&lt;TSource&gt;() : kernel1.Resolve&lt;TSource&gt;(sourceComponentName);
+            return extractDelegate(source);
+        });
+        kernel.Register(registeredComponentName == null ? component : component.Named(registeredComponentName));
+        return component;
+    }
+
+    public static ComponentRegistration&lt;TDelegate&gt; RegisterDelegate&lt;TDelegate, TSource&gt;(
+        this IWindsorContainer container, 
+        Func&lt;TSource, TDelegate&gt; extractDelegate, 
+        string sourceComponentName = null, 
+        string registeredComponentName = null) where TDelegate : class
+    {
+        return container.Kernel.RegisterDelegate(extractDelegate, sourceComponentName,
+            registeredComponentName);
+    }
+}
+</code></pre></div></div>
+
+<p>And the usage (in this case including a component name):</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Kernel.Register(Component.For&lt;AddsNumbers&gt;());
+Kernel.RegisterDelegate&lt;DoMath, AddsNumbers&gt;(addsNumbers =&gt; addsNumbers.Add, registeredComponentName:"Adds");
+</code></pre></div></div>
+
+<h3 id="mocking-a-delegate">Mocking a Delegate</h3>
+
+<p>Stupid delegate! You’re just one method and nobody likes you. (That never gets old.)</p>
+
+<p>What about mocking as it relates to unit tests? Suppose we have this class which depends on our <code class="highlighter-rouge">DoMath</code> delegate, and we want to mock that delegate so that always returns 99:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>public class DependsOnMathFunction
+{
+    private readonly DoMath _doMath;
+
+    public DependsOnMathFunction(DoMath doMath)
+    {
+        _doMath = doMath;
+    }
+
+    public Single ThisIsRedundantButDoMyMath(Single number1, Single number2)
+    {
+        return _doMath(number1, number2);
+    }
+}
+</code></pre></div></div>
+
+<p>We could use an anonymous function:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>[TestMethod]
+public void TestWithMockedDelegate()
+{
+    DoMath doMathMock = (value1, value2) =&gt; 99; // That was easy!
+    var subject = new DependsOnMathFunction(doMathMock);
+    var output = subject.ThisIsRedundantButDoMyMath(1, 2);
+    Assert.AreEqual(99, output);
+}
+</code></pre></div></div>
+
+<p>Or if we need to we could use Moq:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>var doMathMock = new Mock&lt;DoMath&gt;();
+doMathMock.Setup(x =&gt; x(It.IsAny&lt;Single&gt;(), It.IsAny&lt;Single&gt;())).Returns(99);
+</code></pre></div></div>
+
+<p>We could also use a method declared in our test class or in a static class.</p>
+
+<h3 id="how-does-this-affect-the-way-we-implement-dependencies">How Does This Affect the Way We Implement Dependencies?</h3>
+
+<p>This primarily affects how classes “see” the methods they depend on, not how we write the classes those methods are in. Still, we might see two differences:</p>
+
+<p>First, the classes may not need to implement interfaces. I’m in the habit of writing lots and lots of interfaces. Some people think that too many interfaces are a form of clutter. If we’re not going to use the interface because we’re referencing a method via a delegate instead then we don’t need the interface, so why create it?</p>
+
+<p>Second, the function to which a delegate points could be static. 
+I used to think that static methods were bad because if a class calls a static method, that method can’t be mocked or replaced, making the class harder to unit test. 
+I was partially right and partially very wrong. That’s true if a class calls a static method <em>directly</em>. 
+But a delegate is an abstraction which can be mocked. 
+Static functions are fine as long as they don’t depend on or modify any global state.</p>
+
+<p>That makes our container setup a whole lot simpler because there are no classes to register or instances to resolve.</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>// Autofac
+builder.Register&lt;DoMath&gt;(context =&gt; MyStaticMathClass.Add);
+
+// Windsor
+Kernel.Register(Component.For&lt;DoMath&gt;().Instance(MyStaticMathClass.Add));
+</code></pre></div></div>
+
+<p>For some developers the ability to depend on static functions is a better reason to depend on delegates or functions than anything else I’ve mentioned. It’s a step toward functional programming. It challenges my ingrained habit of writing and implementing interfaces, which feels like having a tiny part of my brain rewired. I like that.</p>
+
+<h2 id="navigating-to-delegate-implementations">Navigating to Delegate Implementations</h2>
+<p>A reader helpfully pointed out that in Visual Studio it’s easy to navigate to the implementation(s) of an interface.
+How do we navigate to implementations of a delegate? Read <a href="/blog/2018/04/09/depending-on-functions-navigation.html">Depending on Functions Instead of Interfaces - The Navigation Problem</a>.</p>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>

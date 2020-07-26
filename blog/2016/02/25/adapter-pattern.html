@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>Adapter Pattern</title>
+    <meta name="description" content="There are all sorts of frameworks for logging exceptions and other data. I even created one of my own several years ago. It buffers messages, sends batches v...">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2016/02/25/adapter-pattern.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Adapter Pattern</h1>
+    <p class="post-meta"><time datetime="2016-02-25T06:20:58-05:00" itemprop="datePublished">Feb 25, 2016</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>There are all sorts of frameworks for logging exceptions and other data. I even created one of my own several years ago. It buffers messages, sends batches via MSMQ that are read by a Windows service, and then writes them to SQL tables.</p>
+
+<p>It works great, but it’s also the very definition of “legacy code.” It uses all sorts of static objects and singletons and methods with strange, badly-named parameters. It’s got so much coupling that I can’t use the back end without also using the same client code.</p>
+
+<p>I don’t want anything I develop to have a direct dependency on this legacy code.* But I really don’t want it to depend on any other framework either.</p>
+
+<p>This isn’t suitable:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">FooProvider</span>
+    <span class="p">{</span>
+        <span class="k">public</span> <span class="n">IEnumerable</span><span class="p">&lt;</span><span class="n">Foo</span><span class="p">&gt;</span> <span class="nf">GetFoos</span><span class="p">()</span>
+        <span class="p">{</span>
+            <span class="k">try</span>
+            <span class="p">{</span>
+                <span class="c1">//Create the Foo list</span>
+            <span class="p">}</span>
+            <span class="k">catch</span> <span class="p">(</span><span class="n">Exception</span> <span class="n">ex</span><span class="p">)</span>
+            <span class="p">{</span>
+                <span class="n">ScottsFunkyLogger</span><span class="p">.</span><span class="nf">LogLoggableObject</span><span class="p">(</span><span class="k">new</span> <span class="nf">ApplicationEvent</span><span class="p">(</span>
+                    <span class="n">ex</span><span class="p">.</span><span class="nf">ToString</span><span class="p">(),</span> <span class="n">Guid</span><span class="p">.</span><span class="nf">NewGuid</span><span class="p">(),</span> <span class="n">EventLogEntryType</span><span class="p">.</span><span class="n">Error</span><span class="p">));</span>
+                <span class="k">return</span> <span class="k">new</span> <span class="n">Foo</span><span class="p">[]</span> <span class="p">{};</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>Neither is this, because this means my class can never be used without Castle Windsor.</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">FooProvider</span>
+    <span class="p">{</span>
+        <span class="k">private</span> <span class="k">readonly</span> <span class="n">Castle</span><span class="p">.</span><span class="n">Core</span><span class="p">.</span><span class="n">Logging</span><span class="p">.</span><span class="n">ILogger</span> <span class="n">_logger</span><span class="p">;</span>
+
+        <span class="k">public</span> <span class="nf">FooProvider</span><span class="p">(</span><span class="n">Castle</span><span class="p">.</span><span class="n">Core</span><span class="p">.</span><span class="n">Logging</span><span class="p">.</span><span class="n">ILogger</span> <span class="n">logger</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">_logger</span> <span class="p">=</span> <span class="n">logger</span><span class="p">;</span>
+        <span class="p">}</span>
+
+        <span class="k">public</span> <span class="n">IEnumerable</span><span class="p">&lt;</span><span class="n">Foo</span><span class="p">&gt;</span> <span class="nf">GetFoos</span><span class="p">()</span>
+        <span class="p">{</span>
+            <span class="k">try</span>
+            <span class="p">{</span>
+                <span class="c1">//Create the Foo list</span>
+            <span class="p">}</span>
+            <span class="k">catch</span> <span class="p">(</span><span class="n">Exception</span> <span class="n">ex</span><span class="p">)</span>
+            <span class="p">{</span>
+                <span class="n">_logger</span><span class="p">.</span><span class="nf">Error</span><span class="p">(</span><span class="n">ex</span><span class="p">.</span><span class="nf">ToString</span><span class="p">());</span>
+                <span class="k">return</span> <span class="k">new</span> <span class="n">Foo</span><span class="p">[]</span> <span class="p">{};</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>Side note: This is just for illustration. In most cases I would use an interceptor and wouldn’t have exception logging in my class at all. But let’s say in this case I want to handle the exception gracefully so I need to log it. And even if I log from an interceptor I have to log to something.</p>
+
+<p>The Adapter pattern allows me to use either of these without creating an unwanted dependency or putting embarrassing old legacy code in my new class. I can create the interface I want and then adapt other classes to it.</p>
+
+<p>First, I’ll create a new interface in a separate library:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">interface</span> <span class="nc">ILogger</span>
+    <span class="p">{</span>
+        <span class="k">void</span> <span class="nf">LogException</span><span class="p">(</span><span class="n">Exception</span> <span class="n">ex</span><span class="p">);</span>
+        <span class="k">void</span> <span class="nf">LogMessage</span><span class="p">(</span><span class="kt">string</span> <span class="n">message</span><span class="p">);</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>That library should be minimal - just a few interfaces, no implementations. That’s because everything else I develop is going to reference that interface. I want someone to be able to reference my class library and the interface library without having to add all of the baggage of other packages and libraries that I don’t want or need. Then they require specific versions of other packages that conflict with what I have, and it ties a knot.</p>
+
+<p>Then I can create class libraries that adapt these logging frameworks (or others) to my interface. I still have the baggage of my old logging framework, but it’s in that library. Within that library you might find this adapter class that hides my legacy code behind the new interface.</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">ScottsFunkyLegacyLogger</span> <span class="p">:</span> <span class="n">ILogger</span>
+    <span class="p">{</span>
+        <span class="k">public</span> <span class="k">void</span> <span class="nf">LogException</span><span class="p">(</span><span class="n">Exception</span> <span class="n">ex</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">ScottsFunkyLogger</span><span class="p">.</span><span class="nf">LogLoggableObject</span><span class="p">(</span><span class="k">new</span> <span class="nf">ApplicationEvent</span><span class="p">(</span>
+                <span class="n">ex</span><span class="p">.</span><span class="nf">ToString</span><span class="p">(),</span> <span class="n">Guid</span><span class="p">.</span><span class="nf">NewGuid</span><span class="p">(),</span> <span class="n">EventLogEntryType</span><span class="p">.</span><span class="n">Error</span><span class="p">));</span>
+        <span class="p">}</span>
+
+        <span class="k">public</span> <span class="k">void</span> <span class="nf">LogMessage</span><span class="p">(</span><span class="kt">string</span> <span class="n">message</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">ScottsFunkyLogger</span><span class="p">.</span><span class="nf">LogLoggableObject</span><span class="p">(</span><span class="k">new</span> <span class="nf">ApplicationEvent</span><span class="p">(</span>
+                <span class="n">message</span><span class="p">,</span> <span class="n">Guid</span><span class="p">.</span><span class="nf">NewGuid</span><span class="p">(),</span> <span class="n">EventLogEntryType</span><span class="p">.</span><span class="n">Information</span><span class="p">));</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>Here’s Castle’s <code class="highlighter-rouge">ILogger</code> adapted to our interface:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">CastleLogger</span> <span class="p">:</span> <span class="n">ILogger</span>
+    <span class="p">{</span>
+        <span class="k">private</span> <span class="k">readonly</span> <span class="n">Castle</span><span class="p">.</span><span class="n">Core</span><span class="p">.</span><span class="n">Logging</span><span class="p">.</span><span class="n">ILogger</span> <span class="n">_innerCastleLogger</span><span class="p">;</span>
+
+        <span class="k">public</span> <span class="nf">CastleLogger</span><span class="p">(</span><span class="n">Castle</span><span class="p">.</span><span class="n">Core</span><span class="p">.</span><span class="n">Logging</span><span class="p">.</span><span class="n">ILogger</span> <span class="n">innerCastleLogger</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">_innerCastleLogger</span> <span class="p">=</span> <span class="n">innerCastleLogger</span><span class="p">;</span>
+        <span class="p">}</span>
+        <span class="k">public</span> <span class="k">void</span> <span class="nf">LogException</span><span class="p">(</span><span class="n">Exception</span> <span class="n">ex</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">_innerCastleLogger</span><span class="p">.</span><span class="nf">Error</span><span class="p">(</span><span class="n">ex</span><span class="p">.</span><span class="nf">ToString</span><span class="p">());</span>
+        <span class="p">}</span>
+
+        <span class="k">public</span> <span class="k">void</span> <span class="nf">LogMessage</span><span class="p">(</span><span class="kt">string</span> <span class="n">message</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">_innerCastleLogger</span><span class="p">.</span><span class="nf">Info</span><span class="p">(</span><span class="n">message</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>Now my <code class="highlighter-rouge">FooProvider</code> looks like this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">FooProvider</span>
+    <span class="p">{</span>
+        <span class="k">private</span> <span class="k">readonly</span> <span class="n">MyInterfaceLibrary</span><span class="p">.</span><span class="n">ILogger</span> <span class="n">_logger</span><span class="p">;</span>
+
+        <span class="k">public</span> <span class="nf">MyClass</span><span class="p">(</span><span class="n">MyInterfaceLibrary</span><span class="p">.</span><span class="n">ILogger</span> <span class="n">logger</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">_logger</span> <span class="p">=</span> <span class="n">logger</span><span class="p">;</span>
+        <span class="p">}</span>
+
+        <span class="k">public</span> <span class="n">IEnumerable</span><span class="p">&lt;</span><span class="n">Foo</span><span class="p">&gt;</span> <span class="nf">GetFoos</span><span class="p">()</span>
+        <span class="p">{</span>
+            <span class="k">try</span>
+            <span class="p">{</span>
+                <span class="c1">//Create the Foo list</span>
+            <span class="p">}</span>
+            <span class="k">catch</span> <span class="p">(</span><span class="n">Exception</span> <span class="n">ex</span><span class="p">)</span>
+            <span class="p">{</span>
+                <span class="n">_logger</span><span class="p">.</span><span class="nf">Error</span><span class="p">(</span><span class="n">ex</span><span class="p">.</span><span class="nf">ToString</span><span class="p">());</span>
+                <span class="k">return</span> <span class="k">new</span> <span class="n">Foo</span><span class="p">[]</span> <span class="p">{};</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>Now I can use my ugly legacy code while effectively keeping it out of my new code. I also have the freedom to change my mind, and it’s very easy to adapt any logging framework to that interface. There could be two different applications using the same <code class="highlighter-rouge">FooProvider</code> with completely different logging frameworks.</p>
+
+<p>*Legacy Code</p>
+
+<p>When I have ungainly legacy code like my old logging framework I think of it as a crazy, embarrassing uncle. You don’t want him interacting with anyone but you can’t get rid of him. So you make a nice space for him in the attic, lock him in, and put a slot in the door so you can pass in food and he can pass notes for other people that you can read first and redact. That way you completely control his interaction with the outside world, and you never even open the door unless he requires urgent medical assistance.</p>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>

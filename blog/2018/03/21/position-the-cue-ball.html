@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>Position the Cue Ball</title>
+    <meta name="description" content="I think most people are familiar with billiards, also called “pool.” It’s the game with balls on a table where you hit one ball - the white one, called the “...">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2018/03/21/position-the-cue-ball.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Position the Cue Ball</h1>
+    <p class="post-meta"><time datetime="2018-03-21T07:20:58-04:00" itemprop="datePublished">Mar 21, 2018</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>I think most people are familiar with billiards, also called “pool.” It’s the game with balls on a table where you hit one ball - the white one, called the “cue”, with a cue stick, causing it to hit other balls and hopefully knock them into one of the pockets at the edges of the table. If a ball is sitting right next to a pocket it might be really easy to knock it in. But if the cue ball is at one end of the table and the ball you want to knock in is way at the other end or nowhere near a pocket then it takes more skill.</p>
+
+<p>As a teenager I used to play billiards. While I became marginally better at knocking the balls into the pockets, I quickly plateaued. Almost every game followed the same pattern:</p>
+
+<ul>
+  <li>First was the “break”, which is where the balls are arranged in triangle, you hit them with the cue ball, and they roll off in different directions. There are fifteen balls so chances are something will roll into a pocket even though it wasn’t aimed.</li>
+  <li>Next I would start aiming to sink individual balls. This started off easy too, because there were lots of balls and at least a few were already near pockets.</li>
+  <li>At about the halfway point the game would get really hard because I had made the easier shots and the remaining ones were increasingly difficult. The last few shots were usually all but impossible.</li>
+</ul>
+
+<p>One day a man walked into the condo clubhouse where I was playing, saw me struggling, and told me what I needed to do differently if I wanted to improve.</p>
+
+<p>He said that anyone can make an easy shot and sink a ball. But the real skill is the ability to control where the cue ball rolls after it knocks another ball in so that the next shot and the shot after that will be easy too. You don’t win just by being able to make really difficult shots, although that helps. You win by not setting yourself up to make difficult shots in the first place.</p>
+
+<p>This was revolutionary (to me.) I was so focused on whether or not each ball went into the pocket that I never thought about where the cue ball would go. I thought that it might end up well-positioned by dumb luck, and when it didn’t I tried to compensate by making a difficult shot. I didn’t even know that positioning the cue ball was a thing. (I just learned there’s even a word for it, <em>leave</em>, as in where you leave the ball. That might be the most logical name I’ve ever heard for anything in any sport.)</p>
+
+<h3 id="what-does-this-have-to-do-with-software-development">What Does This Have to Do With Software Development?</h3>
+
+<p>That sounded hard, though, so I stopped shooting pool and became a software developer instead. Sure enough, a similar pattern emerged:</p>
+
+<ul>
+  <li>When I started writing a new application it was easy to imagine that everything might fall into place. You can’t paint yourself into a corner with a single brush stroke, so it’s easy to start off optimistic.</li>
+  <li>As I continued, there were plenty of easy tasks to keep me moving along. I often started out by designing database tables and stored procedures. If I got stuck on one thing I’d leave it and work on something else.</li>
+  <li>Toward the end, the testing process would lead to the discovery of new requirements. As I adjusted my code accordingly, it quickly became tangled and unmaintainable. Before the application was even finished, each change I had to make was like attempting a tricky bank shot, and left the code in an even worse state for the next change that would come along.</li>
+</ul>
+
+<p>Of course, the comparison of software development to billiards is just an analogy and all analogies break down.</p>
+
+<ul>
+  <li>In software development you can only plan so far in advance because you don’t start out with all of the balls on the table. Your customer will add, move, and remove balls over time. They will move the pockets. They will take a ball out of a pocket and ask you to sink it in a different pocket. That’s not a bad customer. That’s just how we iteratively develop software. It’s way better than when they used to put all the balls on the table up front, tell you to document each shot all the way through the end of the game, and hold you to it. (And then move things around anyway.)</li>
+  <li>If unpredictability or even bad choices get you into a tough spot, you can rearrange the table a little bit too. That’s refactoring. It’s not cheating - in fact, we should do it from time to time.</li>
+  <li>The good news: Ideally no one is playing against us, trying to position the cue ball so that our next shot is harder. Our team is working together, everyone is skilled, and everyone wants everyone else to win.</li>
+</ul>
+
+<p>Here’s the point: Each shot can potentially set up the next one to be easy, reasonably difficult, or nearly impossible. We apply the analogy to writing code by taking reasonable steps to ensure that the code we write today doesn’t make the code we or someone else must write tomorrow unnecessarily difficult. But how can we do that when we don’t even know what tomorrow’s requirements will be?</p>
+
+<h3 id="nothing-is-trivial">Nothing Is Trivial</h3>
+
+<p>We’re familiar with design patterns, anti-patterns, SOLID principles, and a few more:</p>
+
+<ul>
+  <li>Write short methods (15 lines of real code or less) with meaningful names</li>
+  <li>Use constants and avoid “magic strings”</li>
+  <li>Don’t repeat yourself</li>
+  <li>Prefer composition over inheritance</li>
+  <li>Don’t do evil things with reflection and runtime type-checking unless you have no choice, and you usually do</li>
+</ul>
+
+<p>Many times we overlook these and other principles when making seemingly small decisions, perhaps individual lines of code, and then we wonder why our codebase ends up gnarlier than we’d hoped. Why do we do this? Here are a few reasons. (I’m not saying they’re good reasons. They’re just reasons.)</p>
+
+<ul>
+  <li>We’re rushed.</li>
+  <li>Maintainable code matters, but for some reason not in the class or method we’re working on right now. (This comes in many forms, including pragmatism, as in “I understand why unit tests are so important but I don’t bother with them because I’m pragmatic,” or, “My finely-tuned pragmatism tells me not to create a new class when there’s no defined limit on the number of methods I can add to an existing one.”)</li>
+  <li>We’re maintaining such fragile, incomprehensible code that the best we can hope for is to place our Jenga block on top and escape with our lives.</li>
+  <li>We ignore minor details when reviewing someone else’s code because we hate to nitpick.</li>
+</ul>
+
+<p>The problem is that it’s difficult to associate cause (small decisions) with effect (unmaintainable code.) That’s because the effect is the accumulation of many small causes, and it might take weeks, months, or longer before we feel enough pain to realize that our code has gotten to a bad place. We don’t like where we end up, but it’s hard to look back and see the steps that got us there.</p>
+
+<p>The remedy is to <em>never think that any decision is trivial</em> and do our best within reason to apply whatever we know to every line of code that we write. If we knew exactly which decisions would or would not give us pain later, and why, then we would be able to predict the future. But we can’t know that. Our inability to see the future is the very reason why we write maintainable code. The most accurate prediction we can make is general: Today’s “trivial” decisions will haunt us or someone else tomorrow.</p>
+
+<p>Even if we apply everything we know we’ll still tie some knots we’ll wish we hadn’t. But it won’t happen as much or as quickly. Our applications won’t live forever, but they’ll be more Clint Eastwood and less Lassie. (Because Lassie died and got replaced over and over. It was either that or callously compare someone who died young to bad software or give up on the Clint Eastwood comparison.)</p>
+
+<h3 id="think-a-step-ahead">Think A Step Ahead</h3>
+
+<p>A more specific way that we can keep our cue ball well-positioned is by thinking through possible or even hypothetical future changes to our code. This doesn’t mean actually writing code to account for those scenarios. But if our code is maintainable then we should be able to at least imagine how we might modify it. If I think a future requirement is likely, I might go so far as to document or comment what the modifications might look like.</p>
+
+<p>Depending on abstractions plays a big role in this. If a class has to validate shipping addresses and it depends on an abstraction called <code class="highlighter-rouge">IAddressValidator</code> that I defined for this class to validate addresses, then even if my current implementation is really simple I’ve left the door open to provide a more complex implementation or even a facade for multiple implementations. Even if that never happens, I’ve still made both the address validator and the class that depends on it simpler and more testable by keeping them separate. If the behavior changes more significantly - perhaps my validator might return suggested corrections - then at least I know where that interaction is defined, and I can change the interface if I need to because it was defined for this purpose. It’s not some giant all-purpose interface that’s used everywhere.</p>
+
+<p>I’m not trying to be prescient, and this certainly doesn’t mean that all future changes will be easy or that I won’t have to change any existing interfaces or classes. Hopefully it does mean that by separating behaviors into dependencies that I can picture changing, I’ll have written something that won’t make the next person curse me too much. I’d like them to feel that I played as their partner, not as their opponent.</p>
+
+<p>Billiards is a game for fun, so the decision to either improve or just knock the balls around should depend entirely on what’s fun for us. Software development should be fun too, but it’s obviously more consequential. We have years of other people’s accumulated wisdom at our fingertips, and often our own experience that we forget to listen to. That experience helps us to plan a step ahead, prepare for the unforeseen future, and not end up behind the eight ball.</p>
+
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>

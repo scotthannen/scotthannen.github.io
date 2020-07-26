@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>Testing Data Access and Stored Procedures</title>
+    <meta name="description" content="This is more integration testing than unit testing, but the idea is the same. I ​have a class that reads/writes using stored procedures, and I want to write ...">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2016/02/19/testing-data-access-and-stored-procedures.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Testing Data Access and Stored Procedures</h1>
+    <p class="post-meta"><time datetime="2016-02-19T06:21:58-05:00" itemprop="datePublished">Feb 19, 2016</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>This is more integration testing than unit testing, but the idea is the same. I ​have a class that reads/writes using stored procedures, and I want to write tests for it. It’s much easier to debug this code in isolation. It saves time.</p>
+
+<p>This assumes that</p>
+
+<ul>
+  <li>the stored procedures just provide access to data - any significant logic is in the application.</li>
+  <li>the class being tested has a single responsibility - providing access to the data.</li>
+  <li>The process for testing is the same as with any other tests - Arrange, Act, Assert.</li>
+</ul>
+
+<p>So if I’m testing a method that inserts data into table, the steps would be:</p>
+
+<ul>
+  <li><strong>Arrange</strong>
+    <ul>
+      <li>Make sure there’s no data in the table that will interfere with what I’m about to test</li>
+      <li>Prepare my input</li>
+    </ul>
+  </li>
+  <li><strong>Act</strong><br />
+Call the method to insert my data</li>
+  <li><strong>Assert</strong><br />
+Verify that the data is in the table just as I expect</li>
+</ul>
+
+<h2 id="a-few-tools-to-help-write-the-tests">A Few Tools to Help Write the Tests</h2>
+
+<p>Add an app.config to the test project, and add your connection string.</p>
+
+<div class="language-xml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;connectionStrings&gt;</span>
+  <span class="nt">&lt;add</span> <span class="na">name=</span><span class="s">"DinosaurDb"</span> <span class="na">connectionString=</span><span class="s">"server=USCLWSQLXYZ;database=APP_DINOSAURS;Integrated Security=SSPI"</span> 
+       <span class="na">providerName=</span><span class="s">"System.Data.SqlClient"</span> <span class="nt">/&gt;</span>
+<span class="nt">&lt;/connectionStrings&gt;</span>
+</code></pre></div></div>
+
+<p>I’ll need a convenient way to execute SQL statements so I can delete data from previous tests and see if what I’ve inserted is there. So I put a static class in the test project:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">static</span> <span class="k">class</span> <span class="nc">Sql</span>
+    <span class="p">{</span>
+        <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> <span class="nf">ExecuteSql</span><span class="p">(</span><span class="kt">string</span> <span class="n">connectionName</span><span class="p">,</span> <span class="kt">string</span> <span class="n">sql</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="k">using</span> <span class="p">(</span><span class="kt">var</span> <span class="n">connection</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">SqlConnection</span><span class="p">(</span><span class="nf">GetConnectionString</span><span class="p">(</span><span class="n">connectionName</span><span class="p">)))</span>
+            <span class="p">{</span>
+                <span class="k">using</span> <span class="p">(</span><span class="kt">var</span> <span class="n">command</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">SqlCommand</span><span class="p">(</span><span class="n">sql</span><span class="p">,</span> <span class="n">connection</span><span class="p">))</span>
+                <span class="p">{</span>
+                    <span class="n">connection</span><span class="p">.</span><span class="nf">Open</span><span class="p">();</span>
+                    <span class="n">command</span><span class="p">.</span><span class="nf">ExecuteNonQuery</span><span class="p">();</span>
+                <span class="p">}</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+
+        <span class="k">public</span> <span class="k">static</span> <span class="n">T</span> <span class="n">ExecuteScalar</span><span class="p">&lt;</span><span class="n">T</span><span class="p">&gt;(</span><span class="kt">string</span> <span class="n">connectionName</span><span class="p">,</span> <span class="kt">string</span> <span class="n">sql</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="k">using</span> <span class="p">(</span><span class="kt">var</span> <span class="n">connection</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">SqlConnection</span><span class="p">(</span><span class="nf">GetConnectionString</span><span class="p">(</span><span class="n">connectionName</span><span class="p">)))</span>
+            <span class="p">{</span>
+                <span class="k">using</span> <span class="p">(</span><span class="kt">var</span> <span class="n">command</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">SqlCommand</span><span class="p">(</span><span class="n">sql</span><span class="p">,</span> <span class="n">connection</span><span class="p">))</span>
+                <span class="p">{</span>
+                    <span class="n">connection</span><span class="p">.</span><span class="nf">Open</span><span class="p">();</span>
+                    <span class="k">return</span> <span class="p">(</span><span class="n">T</span><span class="p">)</span><span class="n">command</span><span class="p">.</span><span class="nf">ExecuteScalar</span><span class="p">();</span>
+                <span class="p">}</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+
+        <span class="k">public</span> <span class="k">static</span> <span class="kt">string</span> <span class="nf">GetConnectionString</span><span class="p">(</span><span class="kt">string</span> <span class="n">connectionName</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="k">return</span> <span class="n">ConfigurationManager</span><span class="p">.</span><span class="n">ConnectionStrings</span><span class="p">[</span><span class="n">connectionName</span><span class="p">].</span><span class="n">ConnectionString</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>Set up before and clean up after</p>
+
+<p>I’m testing a SQL repository class that inserts records into a table called <code class="highlighter-rouge">DINOSAUR</code> and returns the <code class="highlighter-rouge">DINOSAUR_ID</code> for the new record.</p>
+
+<p>In order to keep my unit test data separate from other data, I’m only going to insert dinosaurs with names that begin with “unittest.” So before each and every test I need to make sure I delete any records where the dinosuar name begins with “unittest.”</p>
+
+<p>To do that I’ll add a method marked with the <code class="highlighter-rouge">[TestInitialize]</code> attribute. That method will run before every test and will clean up any test data from my previous tests. I don’t want to leave unit test data behind when I’m done either, so I’ll add another method with a <code class="highlighter-rouge">[TestCleanup]</code> attribute and delete all of my test data there too.</p>
+
+<p>This is part of ‘arranging.’</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="p">[</span><span class="n">TestClass</span><span class="p">]</span>
+    <span class="k">public</span> <span class="k">class</span> <span class="nc">DinosaurSqlRepositoryTests</span>
+    <span class="p">{</span>
+        <span class="k">private</span> <span class="k">const</span> <span class="kt">string</span> <span class="n">TestPrefix</span> <span class="p">=</span> <span class="s">"unittest_"</span><span class="p">;</span>
+        <span class="p">[</span><span class="n">TestInitialize</span><span class="p">]</span>
+        <span class="k">public</span> <span class="k">void</span> <span class="nf">Setup</span><span class="p">()</span>
+        <span class="p">{</span>
+            <span class="nf">CleanupTestData</span><span class="p">();</span>
+        <span class="p">}</span>
+        <span class="p">[</span><span class="n">TestCleanup</span><span class="p">]</span>
+        <span class="k">public</span> <span class="k">void</span> <span class="nf">Cleanup</span><span class="p">()</span>
+        <span class="p">{</span>
+            <span class="nf">CleanupTestData</span><span class="p">();</span>
+        <span class="p">}</span>
+        <span class="k">private</span> <span class="k">void</span> <span class="nf">CleanupTestData</span><span class="p">()</span>
+        <span class="p">{</span>
+            <span class="n">Sql</span><span class="p">.</span><span class="nf">ExecuteSql</span><span class="p">(</span><span class="s">"DinosaurDb"</span><span class="p">,</span><span class="kt">string</span><span class="p">.</span><span class="nf">Format</span><span class="p">(</span><span class="s">"delete DINOSAUR where NAME like '{0}%'"</span><span class="p">,</span><span class="n">TestPrefix</span><span class="p">));</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<h2 id="the-tests">The Tests</h2>
+
+<p>Now I can write some actual tests. First I want to make sure that when the repository inserts a record and returns an ID that the record really has been inserted with my data and that ID. This test will insert a dinosaur with a random name using the <code class="highlighter-rouge">DinosaurSqlRepository</code> and then query the database for the expected record:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="p">[</span><span class="n">TestMethod</span><span class="p">]</span>
+    <span class="k">public</span> <span class="k">void</span> <span class="nf">DinosaurSqlRepository_DinosaurIsInsertedCorrectly</span><span class="p">()</span>
+    <span class="p">{</span>
+        <span class="kt">var</span> <span class="n">newDinosaur</span> <span class="p">=</span> <span class="k">new</span> <span class="n">Dinosaur</span>
+        <span class="p">{</span>
+            <span class="n">Name</span> <span class="p">=</span> <span class="n">TestPrefix</span> <span class="p">+</span> <span class="n">Guid</span><span class="p">.</span><span class="nf">NewGuid</span><span class="p">().</span><span class="nf">ToString</span><span class="p">().</span><span class="nf">Substring</span><span class="p">(</span><span class="m">0</span><span class="p">,</span> <span class="m">10</span><span class="p">),</span>
+            <span class="n">Period</span> <span class="p">=</span> <span class="s">"Triassic"</span>
+        <span class="p">};</span>
+
+        <span class="kt">var</span> <span class="n">repository</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">DinosaurSqlRepository</span><span class="p">(</span><span class="n">Sql</span><span class="p">.</span><span class="nf">GetConnectionString</span><span class="p">(</span><span class="s">"DinosaurDb"</span><span class="p">));</span>
+        <span class="kt">var</span> <span class="n">id</span> <span class="p">=</span> <span class="n">repository</span><span class="p">.</span><span class="nf">InsertDinosaur</span><span class="p">(</span><span class="n">newDinosaur</span><span class="p">);</span>
+        <span class="kt">var</span> <span class="n">matchingRecords</span> <span class="p">=</span> <span class="n">Sql</span><span class="p">.</span><span class="n">ExecuteScalar</span><span class="p">&lt;</span><span class="kt">int</span><span class="p">&gt;(</span><span class="s">"DinosaurDb"</span><span class="p">,</span> <span class="kt">string</span><span class="p">.</span><span class="nf">Format</span><span class="p">(</span>
+            <span class="s">"select count(*) from DINOSAUR where ID={0} and NAME='{1}' and PERIOD='{2}'"</span><span class="p">,</span>
+            <span class="n">id</span><span class="p">,</span> <span class="n">newDinosaur</span><span class="p">.</span><span class="n">Name</span><span class="p">,</span> <span class="n">newDinosaur</span><span class="p">.</span><span class="n">Period</span><span class="p">));</span>
+        <span class="n">Assert</span><span class="p">.</span><span class="nf">AreEqual</span><span class="p">(</span><span class="m">1</span><span class="p">,</span><span class="n">matchingRecords</span><span class="p">);</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>If I insert an identical dinosaur I expect the procedure to return an ID for the existing dinosaur instead of throwing an error. So I can test for that by executing the same insert twice and making sure I get the same ID both times. This isn’t even a behavior of the <code class="highlighter-rouge">DinosaurSqlRepository</code>. I’m testing the stored procedure.</p>
+
+<p>(It looks like a lot more typing but most is copied and pasted from the first one.)</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="p">[</span><span class="n">TestMethod</span><span class="p">]</span>
+    <span class="k">public</span> <span class="k">void</span> <span class="nf">DinosaurSqlRepository_DuplicateInsertReturnsSameId</span><span class="p">()</span>
+    <span class="p">{</span>
+        <span class="kt">var</span> <span class="n">newDinosaur</span><span class="p">=</span> <span class="k">new</span> <span class="n">Dinosaur</span>
+        <span class="p">{</span>
+            <span class="n">Name</span> <span class="p">=</span> <span class="n">TestPrefix</span> <span class="p">+</span> <span class="n">Guid</span><span class="p">.</span><span class="nf">NewGuid</span><span class="p">().</span><span class="nf">ToString</span><span class="p">().</span><span class="nf">Substring</span><span class="p">(</span><span class="m">0</span><span class="p">,</span> <span class="m">10</span><span class="p">),</span>
+            <span class="n">Period</span> <span class="p">=</span> <span class="s">"Triassic"</span>
+        <span class="p">};</span>
+        <span class="kt">var</span> <span class="n">repository</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">DinosaurSqlRepository</span><span class="p">(</span><span class="n">Sql</span><span class="p">.</span><span class="nf">GetConnectionString</span><span class="p">(</span><span class="s">"DinosaurDb"</span><span class="p">));</span>
+        <span class="kt">var</span> <span class="n">firstId</span> <span class="p">=</span> <span class="n">repository</span><span class="p">.</span><span class="nf">InsertDinosaur</span><span class="p">(</span><span class="n">newDinosaur</span><span class="p">);</span>
+        <span class="kt">var</span> <span class="n">secondId</span> <span class="p">=</span> <span class="n">repository</span><span class="p">.</span><span class="nf">InsertDinosaur</span><span class="p">(</span><span class="n">newDinosaur</span><span class="p">);</span>
+        <span class="n">Assert</span><span class="p">.</span><span class="nf">AreEqual</span><span class="p">(</span><span class="n">firstId</span><span class="p">,</span> <span class="n">secondId</span><span class="p">);</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>It’s important that each test run in isolation without affecting other tests. That’s accomplished by the setup and cleanup methods that run before every test.</p>
+
+<p>If the class executes a query to retrieve data then I can write a test that inserts specific records and then make sure that my class returns the data I expect mapped correctly to my model. We can also send a bad input and test that the procedure throws an error with the expected method.</p>
+
+<p>I’ve done this whenever I’ve written data access classes over the past few years and it really saves time. When I make mistakes I find them right away. I’ve only written the code a few minutes earlier so it’s fresh in my mind. Once these classes are tested then they just work and I can move on to the classes that depend on them.</p>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>

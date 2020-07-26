@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>Unit Testing &quot;Hello World&quot; Examples</title>
+    <meta name="description" content="I’m borrowing the example of a palindrome detector to illustrate how unit tests work. (I forget where I saw it used.) Given how simple the class is some of t...">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2016/02/19/unit-tests-hello-world.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Unit Testing "Hello World" Examples</h1>
+    <p class="post-meta"><time datetime="2016-02-19T06:20:58-05:00" itemprop="datePublished">Feb 19, 2016</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>I’m borrowing the example of a palindrome detector to illustrate how unit tests work. (I forget where I saw it used.) Given how simple the class is some of the tests may be overkill. But even when the code looks simple a few unit tests never hurt. This isn’t intended to explain good unit tests vs. bad or how to write code that’s easier to unit test. This is more like a “Hello, world” for unit testing.</p>
+
+<h2 id="the-palindrome-detector">The Palindrome Detector</h2>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">PalindromeDetector</span>
+    <span class="p">{</span>
+        <span class="k">public</span> <span class="kt">bool</span> <span class="nf">IsPalindrome</span><span class="p">(</span><span class="kt">string</span> <span class="n">inputText</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">inputText</span> <span class="p">==</span> <span class="k">null</span><span class="p">)</span> <span class="k">throw</span> <span class="k">new</span> <span class="nf">ArgumentNullException</span><span class="p">(</span><span class="s">"inputText"</span><span class="p">);</span>
+            <span class="kt">var</span> <span class="n">inputChars</span> <span class="p">=</span> <span class="n">inputText</span><span class="p">.</span><span class="nf">ToLower</span><span class="p">().</span><span class="nf">Where</span><span class="p">(</span><span class="kt">char</span><span class="p">.</span><span class="n">IsLetterOrDigit</span><span class="p">).</span><span class="nf">ToArray</span><span class="p">();</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">inputChars</span><span class="p">.</span><span class="n">Length</span> <span class="p">==</span> <span class="m">0</span><span class="p">)</span> <span class="k">return</span> <span class="k">false</span><span class="p">;</span>
+            <span class="k">return</span> <span class="n">inputChars</span><span class="p">.</span><span class="nf">SequenceEqual</span><span class="p">(</span><span class="n">inputChars</span><span class="p">.</span><span class="nf">Reverse</span><span class="p">());</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>How to add unit tests</p>
+
+<p>To write unit tests we would usually create a new project of type “Unit Test Project” in our solution. That creates a project with the references needed to run unit tests. Then we would reference the project containing the classes we want to test.</p>
+
+<p>A class containing unit tests is marked with the <code class="highlighter-rouge">[TestClass]</code> attribute. The individual tests are methods marked with the <code class="highlighter-rouge">[TestMethod]</code> attribute.</p>
+
+<h2 id="basic-tests">Basic Tests</h2>
+
+<p>For our <code class="highlighter-rouge">PalindromeDetector</code> class we want to verify that it returns true if the input is a palindrome and false if the input is not a palindrome.</p>
+
+<p>The first test is a little more detailed to illustrate the <strong>AAA (Arrange, Act, Assert)</strong> pattern.</p>
+
+<ul>
+  <li><strong>Arrange</strong><br />
+Prepare what we want to test. In this case that means creating an instance of <code class="highlighter-rouge">PalindromeDetector</code> and creating an input.</li>
+  <li><strong>Act</strong><br />
+Execute whatever the behavior is that we want to test. In this case that means calling the <code class="highlighter-rouge">IsPalindrome</code> function and passing in our input.</li>
+  <li><strong>Assert</strong><br />
+State what we expect the outcome to be. In this case we’re asserting that output is true, since the input was a palindrome. We don’t really have to be that explicit. The second test (return false for a non-palindrome) does the same thing in fewer lines. There’s nothing wrong with that.</li>
+</ul>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="p">[</span><span class="n">TestClass</span><span class="p">]</span>
+    <span class="k">public</span> <span class="k">class</span> <span class="nc">PalindromeDetectorTests</span>
+    <span class="p">{</span>
+        <span class="p">[</span><span class="n">TestMethod</span><span class="p">]</span>
+        <span class="k">public</span> <span class="k">void</span> <span class="nf">PalindromeDetector_DetectsPalindrome</span><span class="p">()</span>
+        <span class="p">{</span>
+            <span class="c1">//Arrange</span>
+            <span class="kt">var</span> <span class="n">detector</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">PalindromeDetector</span><span class="p">();</span>
+            <span class="kt">var</span> <span class="n">input</span> <span class="p">=</span> <span class="s">"madamimadam"</span><span class="p">;</span>
+
+            <span class="c1">//Act</span>
+            <span class="kt">var</span> <span class="n">output</span> <span class="p">=</span> <span class="n">detector</span><span class="p">.</span><span class="nf">IsPalindrome</span><span class="p">(</span><span class="n">input</span><span class="p">);</span>
+
+            <span class="c1">//Assert</span>
+            <span class="n">Assert</span><span class="p">.</span><span class="nf">IsTrue</span><span class="p">(</span><span class="n">output</span><span class="p">);</span>
+        <span class="p">}</span>
+
+        <span class="p">[</span><span class="n">TestMethod</span><span class="p">]</span>
+        <span class="k">public</span> <span class="k">void</span> <span class="nf">PalindromeDetector_DetectsNonPalindrome</span><span class="p">()</span>
+        <span class="p">{</span>
+            <span class="kt">var</span> <span class="n">detector</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">PalindromeDetector</span><span class="p">();</span>
+            <span class="n">Assert</span><span class="p">.</span><span class="nf">IsFalse</span><span class="p">(</span><span class="n">detector</span><span class="p">.</span><span class="nf">IsPalindrome</span><span class="p">(</span><span class="s">"not a palindrome"</span><span class="p">));</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>A test passes if it runs without throwing any exceptions. If the condition specified by the <code class="highlighter-rouge">Assert</code> statement is not true then it throws an exception, causing the test to fail. For example,</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="n">Assert</span><span class="p">.</span><span class="nf">IsTrue</span><span class="p">(</span><span class="n">output</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>throws an exception if output = false. Or if we expect a list to have 5 items we could use</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="n">Assert</span><span class="p">.</span><span class="nf">AreEqual</span><span class="p">(</span><span class="m">5</span><span class="p">,</span> <span class="n">myList</span><span class="p">.</span><span class="n">Count</span><span class="p">);</span>
+</code></pre></div></div>
+
+<h2 id="testing-other-scenarios">Testing Other Scenarios</h2>
+
+<p>This makes unit testing especially useful. Within reason we want to be sure that regardless of what the input is, the result is something that we expect. For example, do we expect the comparison to be case-insensitive? Is an empty string a palindrome or not? We can write tests for those.</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="p">[</span><span class="n">TestMethod</span><span class="p">]</span>
+        <span class="k">public</span> <span class="k">void</span> <span class="nf">PalindromeDetector_IsCaseInsensitive</span><span class="p">()</span>
+        <span class="p">{</span>
+            <span class="kt">var</span> <span class="n">detector</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">PalindromeDetector</span><span class="p">();</span>
+            <span class="n">Assert</span><span class="p">.</span><span class="nf">IsTrue</span><span class="p">(</span><span class="n">detector</span><span class="p">.</span><span class="nf">IsPalindrome</span><span class="p">(</span><span class="s">"MadamImAdam"</span><span class="p">));</span>
+        <span class="p">}</span>
+
+        <span class="p">[</span><span class="n">TestMethod</span><span class="p">]</span>
+        <span class="k">public</span> <span class="k">void</span> <span class="nf">PalindromeDetector_EmptyStringIsNotPalindrome</span><span class="p">()</span>
+        <span class="p">{</span>
+            <span class="kt">var</span> <span class="n">detector</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">PalindromeDetector</span><span class="p">();</span>
+            <span class="n">Assert</span><span class="p">.</span><span class="nf">IsFalse</span><span class="p">(</span><span class="n">detector</span><span class="p">.</span><span class="nf">IsPalindrome</span><span class="p">(</span><span class="kt">string</span><span class="p">.</span><span class="n">Empty</span><span class="p">));</span>
+        <span class="p">}</span>
+</code></pre></div></div>
+
+<p>Does the method throw an exception when it should? We can test for that also.</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="p">[</span><span class="n">TestMethod</span><span class="p">]</span>
+        <span class="p">[</span><span class="nf">ExpectedException</span><span class="p">(</span><span class="k">typeof</span><span class="p">(</span><span class="n">ArgumentNullException</span><span class="p">))]</span>
+        <span class="k">public</span> <span class="k">void</span> <span class="nf">PalindromeDetector_ThrowsErrorForNullInput</span><span class="p">()</span>
+        <span class="p">{</span>
+            <span class="kt">var</span> <span class="n">detector</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">PalindromeDetector</span><span class="p">();</span>
+            <span class="n">detector</span><span class="p">.</span><span class="nf">IsPalindrome</span><span class="p">(</span><span class="k">null</span><span class="p">);</span>
+            <span class="n">Assert</span><span class="p">.</span><span class="nf">Fail</span><span class="p">(</span><span class="s">"Should have thrown an exception."</span><span class="p">);</span>
+        <span class="p">}</span>   
+</code></pre></div></div>
+
+<p>If <code class="highlighter-rouge">IsPalindrome</code> doesn’t throw an exception then execution continues with the next line, <code class="highlighter-rouge">Assert.Fail()</code>, which just causes the test to fail. If it throws an exception but it isn’t an <code class="highlighter-rouge">ArgumentNullException</code>, the exception isn’t caught, so the test fails.</p>
+
+<p>These tests may be overkill because <code class="highlighter-rouge">PalindromeDetector</code> is simple and easy to read. But in practice here’s what they accomplish:</p>
+
+<ul>
+  <li>We don’t need to make a mental note to test what happens if the input is empty or null, etc. from the UI or within the application. We know that it’s tested, and we can easily repeat the test.</li>
+  <li>Running 10, 20, or 50 tests that execute in a total of 5 seconds is a lot faster than testing those same behaviors from within the application, especially if we’re going to do it over and over.</li>
+  <li>Even when the class is simple, we make mistakes. Ideally we write the test right before or after we write the class and run it right away. If we make a mistake we find it immediately and fix it. Which is faster, finding an error in one method or finding an error that could be in one of several classes? Or worse, finding an error when we’re testing the whole application end-to-end?</li>
+  <li>We might not expect to write code that’s more reliable and write it faster, but that’s exactly what can happen.</li>
+  <li>When code has no unit tests, it’s harder for someone making changes to tell if they’ve broken something. Imagining every possible effect of a change is difficult or impossible. Running a unit test is easy or even automated.</li>
+  <li>The behavior of the class is documented. Someone else could edit the class and not realize that the comparison should be case-insensitive. But if they change that behavior the test will fail. As soon as that happens they’ll realize how the class is expected to behave and fix it.</li>
+  <li>If we try to write unit tests, it forces us to write our code in smaller units that can be tested (“testable code.”) That results in simpler, more maintainable code whether or not we even write the tests.</li>
+</ul>
+
+<h2 id="how-to-run-tests">How to Run Tests</h2>
+
+<ul>
+  <li>In the Visual Studio menu, open Test -&gt; Windows -&gt; Test Explorer.</li>
+  <li>After you build the project all of your tests will appear in the window.</li>
+  <li>You can select “Run all” or select individual tests, right-click, and “Run selected tests.”</li>
+  <li>Right-click within the class or an individual test and select “Run Tests” to run all the tests in the class or just one test.</li>
+</ul>
+
+<p>You can also automate this. We have unit tests run when we check in and the commit is rejected if unit tests fail.</p>
+
+<p>Select “Debug” instead of “Run” and you can set breakpoints or break on exceptions. That’s useful when a test fails and we need to find out why.</p>
+
+<p>In the Test Explorer window, tests that pass turn green. Tests that fail turn red. Click on the failed test to see the stacktrace. If the test failed because of a failed Assert then you’ll see that. Or if it failed because of an exception in the code being tested you’ll see that.</p>
+
+<h2 id="last-thing">Last Thing</h2>
+
+<p>Just before posting I realized that my palindrome detector was all wrong. A string can be a palindrome as long as the sequence of letters and digits are the same when reversed. Spaces and punctuation don’t count. So I had to modify the method to account for that.</p>
+
+<p>The existing scenarios I tested for were still valid, so I could run those tests again, and they all passed. (How convenient.) But then I needed to add two more tests to account for strings with spaces and punctuation.</p>
+
+<p>Again, this is perhaps overkill since what the method does is so simple. But when testing the same method with different parameters, adding another test takes literally a few seconds. You just copy and paste the previous method, change the name, and change the parameters. It’s really no work at all.</p>
+
+<p>Here are the remaining unit tests.</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="p">[</span><span class="n">TestMethod</span><span class="p">]</span>
+    <span class="k">public</span> <span class="k">void</span> <span class="nf">PalindromeDetector_DetectsWithNonAlphaCharacters</span><span class="p">()</span>
+    <span class="p">{</span>
+        <span class="kt">var</span> <span class="n">detector</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">PalindromeDetector</span><span class="p">();</span>
+        <span class="n">Assert</span><span class="p">.</span><span class="nf">IsTrue</span><span class="p">(</span><span class="n">detector</span><span class="p">.</span><span class="nf">IsPalindrome</span><span class="p">(</span><span class="s">"123Madam, I'm Adam!321"</span><span class="p">));</span>
+    <span class="p">}</span>
+
+    <span class="p">[</span><span class="n">TestMethod</span><span class="p">]</span>
+    <span class="k">public</span> <span class="k">void</span> <span class="nf">PalindromeDetector_TreatsNonAlphanumericAsEmpty</span><span class="p">()</span>
+    <span class="p">{</span>
+        <span class="kt">var</span> <span class="n">detector</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">PalindromeDetector</span><span class="p">();</span>
+        <span class="n">Assert</span><span class="p">.</span><span class="nf">IsFalse</span><span class="p">(</span><span class="n">detector</span><span class="p">.</span><span class="nf">IsPalindrome</span><span class="p">(</span><span class="s">"!@# #@!"</span><span class="p">));</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>

@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>Tame Your Giant, Beastly Dependency Injection Registration Class and Ride It Into Glorious Victory</title>
+    <meta name="description" content="We use DI containers (dependency injection containers, also called inversion of control containers or IoC containers) to help us write cleaner, more manageab...">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2018/04/03/tame-your-dependency-injection-registration.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Tame Your Giant, Beastly Dependency Injection Registration Class and Ride It Into Glorious Victory</h1>
+    <p class="post-meta"><time datetime="2018-04-03T05:20:58-04:00" itemprop="datePublished">Apr 3, 2018</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>We use DI containers (dependency injection containers, also called <em>inversion of control containers</em> or <em>IoC containers</em>) to help us write cleaner, more manageable code. 
+Isn’t it ironic, then, that one of the most cluttered and chaotic areas of our code
+is often the part where we register dependencies with the container?</p>
+
+<p>(There are multiple terms to describe registering dependencies with a container, including <em>container configuration</em>, <em>component registration</em>, and probably more. For the sake of consistency I’ll call it <em>registering dependencies</em> or <em>dependency registration</em>.)</p>
+
+<p>For example, using Unity, the registration might look a little like this:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>public void RegisterDependencies(IUnityContainer container)
+{
+    // +100 lines
+    container.RegisterType&lt;ISomeInterface, Something&gt;("This");
+    container.RegisterType&lt;ISomeInterface, SomethingElse&gt;("That", 
+        new InjectionProperty("connectionString",
+        ConfigurationManager.ConnectionStrings["thatConnectionString"].ConnectionString));
+    container.RegisterType&lt;IGoesNorth, Train&gt;();
+    container.RegisterType&lt;Boat&gt;();
+    container.RegisterInstance&lt;IGoesSouth&gt;(container.Resolve&lt;Boat&gt;());
+    // + 200 more lines
+}
+</code></pre></div></div>
+
+<p>…except you can can scroll through five screens of this stuff, it’s in no discernible order, and it registers dependencies for three or four different libraries used in your application, all mixed together.</p>
+
+<p>It’s not the end of the world because at least by cramming all of that in here we’re keeping the rest of our code a little 
+bit neater. But this still leads to a few problems:</p>
+
+<ul>
+  <li>It’s difficult to read and maintain.</li>
+  <li>If we maintain other applications that depend on the same libraries, we’ll duplicate the code. Those duplications 
+will look almost identical except for some variations in syntax (because there’s always more than one way to do the same thing), 
+some different names, and with the registrations in a different order.</li>
+  <li>There are no tests for this code, even though an error can cause fatal runtime exceptions.</li>
+  <li>It forces an application to know too much about the inner workings of classes it depends on. An application should deal with the interfaces of a class library without unnecessarily knowing its implementation details. That intent is defeated if our application must contain code to register all of the dependencies of a class library.</li>
+  <li>Finding and deleting unused registrations is harder, so we end up leaving in things we no longer need.</li>
+</ul>
+
+<p>How do we fix this?</p>
+
+<h2 id="break-up-the-big-method-into-small-methods">Break Up the Big Method Into Small Methods</h2>
+<p>If we have a giant method with a hundred registrations and we’re looking for an easy fix we can break that method into smaller methods. For a start we might separate them according to areas of functionality. Then our main method might look more like this:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>RegisterUserComponents(container);
+RegisterProductComponents(container);
+RegisterLoggingComponents(container);
+</code></pre></div></div>
+
+<p>If that’s as far as we get it’s still more manageable than one big method.</p>
+
+<h2 id="separate-dependency-registration-into-modules">Separate Dependency Registration Into Modules</h2>
+
+<p>Most popular DI libraries provide interfaces or base classes we can implement that provide a familiar, consistent way to add registrations to a container.</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>container.AddFacility&lt;YourFacility&gt;();                // Castle Windsor Facility
+containerBuilder.RegisterModule(new YourModule());    // Autofac Module
+container.AddNewExtension&lt;YourContainerExtension&gt;();  // Unity Container Extension
+</code></pre></div></div>
+
+<p>Even within these three frameworks there are more options. Windsor also has <em>installers</em>, which are similar to facilities, but
+there are also methods to discover and apply the installers within an assembly. The point is that you have options. (I use Windsor more than any other container, but I like to use other containers when writing or testing ideas to ensure that my designs aren’t coupled to the use of a particular container.)</p>
+
+<p>Suppose you have a Foo Calculator which is composed of several classes, and you want to cleanly separate registration of its dependencies into its own
+class. You could create a class like this:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>public class FooCalculatorContainerExtensions : UnityContainerExtension
+{
+    protected override void Initialize()
+    {
+        Container.RegisterType&lt;IFooCalculator, FooCalculator&gt;();
+        Container.RegisterType&lt;IFooRepository, SqlFooRepository&gt;();
+        Container.RegisterType&lt;IFooValidator, FooInputValidator&gt;("FooInputValidator");
+        Container.RegisterType&lt;IFooValidator, FooDataValidator&gt;("FooDataValidator");
+    }
+}
+</code></pre></div></div>
+
+<p>and then, in the composition root of your application, where you register dependencies with your container, you would do this:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>container.AddNewExtension&lt;FooCalculatorContainerExtension&gt;();
+</code></pre></div></div>
+
+<p>Isn’t that easier to read than if those same component registrations were buried in several hundred lines of similar-looking code? 
+Perhaps we could even prevent that giant registration class from growing so large in the first place.</p>
+
+<h2 id="what-are-the-benefits">What Are the Benefits?</h2>
+<p>Does the title of this post oversell the rewards? Maybe it’s not actually glorious… no, I’m going to stand by every word of it. We’re not just going to eliminate the ugliness of one giant method by moving code around, although that’s pretty awesome too. Once we’ve tamed this beast there are other ways it can serve us.</p>
+
+<h3 id="reusability">Reusability</h3>
+<p>This is particularly true if we’re building a class library that we or others will use in different projects. 
+The consumers of our library won’t need to know how to regsiter its dependencies or add that code to their own container setup.
+Quite possibly they can do it with a single line of code.</p>
+
+<p>If we’re concerned with making our library container-agnostic - that is, it isn’t tied to one particular brand of DI container - 
+we could put the Unity-specific or Windsor-specific code in a separate project. I do sometimes, but it depends on the circumstances
+and I’m not rigid about it.</p>
+
+<h3 id="testability">Testability</h3>
+<p>Assuming that <code class="highlighter-rouge">FooCalculator</code> is the root object and it depends on the other classes, you could write a unit test like this:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>[TestMethod]
+public void VerifyFooCalculatorRegistration()
+{
+    using (var container = new Unity.UnityContainer())
+    {
+        container.AddNewExtension&lt;FooCalculatorContainerExtension&gt;();
+        var resolved = container.Resolve&lt;IFooCalculator&gt;();
+        Assert.IsNotNull(resolved);
+    }
+}
+</code></pre></div></div>
+
+<p>You could even call <code class="highlighter-rouge">container.Registrations</code> to get all of the registered types and verify that you can resolve all of them.</p>
+
+<h3 id="easier-more-complete-integration-tests">Easier, More Complete Integration Tests</h3>
+<p>If you’re writing integration tests that test a composition of several classes, you can even use a container to simplify your test setup.<br />
+For example:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>[TestClass]
+public class FooCalculatorIntegrationTest
+{
+    private IUnityContainer _container;
+
+    [TestInitialize]
+    public void Setup()
+    {
+        _container = new Unity.UnityContainer();
+        _container.AddNewExtension&lt;FooCalculatorContainerExtension&gt;();
+    }
+
+    [TestMethod]
+    public void TestSomethingWithMockedRepository()
+    {
+        var repository = new Mock&lt;IFooRepository&gt;();
+        repository.Setup(x =&gt; x.GetFoo(It.IsAny&lt;Guid&gt;())).Returns(new Foo(someParticularFooDetails));
+
+        // Replace the previous registration of the repository with the mock.
+        _container.RegisterInstance&lt;IFooRepository&gt;(repository.Object);
+
+        var subject = _container.Resolve&lt;IFooRepository&gt;();
+        // Do something with the subject. Act and assert.
+    }
+
+    [TestCleanup]
+    public void Cleanup()
+    {
+        _container.Dispose();
+    }        
+}
+</code></pre></div></div>
+
+<p>This is especially helpful if we’re testing classes with lots of nested dependencies. If we’ve written reusable code to set up a container
+to create class instances, why not use it? And, since it’s an integration test, doesn’t it make sense that it would also test the code we’ll use to register the dependencies?</p>
+
+<h2 id="injecting-dependencies-into-our-dependency-registration-classes">Injecting Dependencies Into Our Dependency Registration Classes</h2>
+
+<p>That might sound convoluted. But suppose an application depends on our Foo Calculator library, and registers its dependencies by conveniently
+adding our <code class="highlighter-rouge">FooCalculatorContainerExtension</code> to its container. There’s just one problem: <code class="highlighter-rouge">SqlFooRepository</code> needs a SQL connection string.
+The library has no way of knowing what that connection string is. How do we provide that dependency to <code class="highlighter-rouge">SqlFooRepository</code>? (For the 
+purpose of demonstration I’m just concerned with a single SQL connection string. In practice this could be a class containing several
+settings or an instance of some other class.)</p>
+
+<p>There are a few approaches. Regardless of which we use, what’s critical is that the dependency is explicit. It’s best if we can require that it 
+be fulfilled in order for the code to compile. Second best would be a clear, helpful runtime exception.</p>
+
+<p>One is constructor injection into our container extension/module/facility:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>public class FooCalculatorContainerExtension : UnityContainerExtension
+{
+    private readonly string _fooRepositoryConnectionString;
+
+    public FooCalculatorContainerExtension(string fooRepositoryConnectionString)
+    {
+        if(string.IsNullOrEmpty(fooRepositoryConnectionString))
+            throw new ArgumentException($"{nameof(fooRepositoryConnectionString)} is required.");
+        _fooRepositoryConnectionString = fooRepositoryConnectionString;
+    }
+
+    protected override void Initialize()
+    {
+        Container.RegisterType&lt;IFooCalculator, FooCalculator&gt;();
+        Container.RegisterType&lt;IFooRepository, SqlFooRepository&gt;
+            (new InjectionProperty("connectionString", _fooRepositoryConnectionString));
+        Container.RegisterType&lt;IFooValidator, FooInputValidator&gt;("FooInputValidator");
+        Container.RegisterType&lt;IFooValidator, FooDataValidator&gt;("FooDataValidator");
+    }
+}
+</code></pre></div></div>
+
+<p>Now the extension can’t be created and added without supplying the connection string. Its usage would look like this:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>var fooCalculatorExtension = new FooCalculatorContainerExtension(configuration["connectionStrings:fooCalculator"]);
+container.AddExtension(fooCalculatorExtension);
+</code></pre></div></div>
+
+<p>Now the application doesn’t know too much about the library, except that it needs a connection string. The library, on the other hand, 
+doesn’t know where or how an application consuming it stores its connection strings. (If you’ve ever used a library that assumes there’s an
+app.config/web.config, assumes a particular setting or connection string is there, and throws a useless exception when it’s missing, you’ll
+understand how frustrating that is.)</p>
+
+<p>If a more complex set of settings was involved, I’d likely create a class containing all of them. Using .NET Core you could 
+<a href="https://weblog.west-wind.com/posts/2017/Dec/12/Easy-Configuration-Binding-in-ASPNET-Core-revisited">bind a settings object to your configuration</a>.
+You could provide a helper method to load those values from app.config/web.config. In any of those cases there would be 
+validation which</p>
+
+<ul>
+  <li>ensures that required values are supplied</li>
+  <li>throws clear, helpful exceptions so that no one has to open up the code and figure out what it’s looking for and where</li>
+</ul>
+
+<h2 id="dont-call-constructors-unless-you-have-no-choice-and-you-always-have-a-choice">Don’t Call Constructors Unless You Have No Choice, And You Always Have a Choice</h2>
+
+<p>One last thought: One of the benefits of a DI container is that it inspects a class’s constructor, determines what its dependencies are,
+and resolves the dependencies it needs to call the constructor. For the most part our registration should not use factory methods which 
+resolve objects from the container and then pass them to the constructor of another class.</p>
+
+<p>What am I even talking about? If that made no sense or you’ve never heard of such a thing, stop reading now because you don’t need to see this:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>protected override void Initialize()
+{
+    Container.RegisterType&lt;ISomething, Something&gt;();
+    Container.RegisterType&lt;ISomeOtherThing, SomethingElse&gt;();
+    Container.RegisterType&lt;IFooRepository, SqlFooRepository&gt;
+        (new InjectionProperty("connectionString", _fooRepositoryConnectionString));
+    Container.RegisterInstance(typeof(IFooValidator), "FooDataValidator", 
+        new FooDataValidator(Container.Resolve&lt;ISomething&gt;()));
+    Container.RegisterInstance(typeof(IFooValidator), "FooInputValidator", 
+        new FooInputValidator(Container.Resolve&lt;ISomeOtherThing&gt;()));
+    Container.RegisterInstance(typeof(IFooCalculator), 
+        new FooCalculator(Container.Resolve&lt;IFooRepository&gt;(),
+            new []
+            {
+                Container.Resolve&lt;IFooValidator&gt;("FooDataValidator"),
+                Container.Resolve&lt;IFooValidator&gt;("FooInputValidator")}));
+}
+</code></pre></div></div>
+
+<p>Yes, that happens. I don’t know why. If all of the dependencies are registered, there’s no sane reason to call constructors,
+register the instances with the container, resolve them, and pass them to more constructors. <em>That’s what the container does for us.</em>
+Part of what makes DI containers so awesome is that we don’t have to deal with that complexity. 
+When we’re writing code, there are no levels of nested dependencies. Our classes depend on abstractions, so as we’re working with a class
+we don’t have to think about what the implementations of those abstractions depend on. We eliminate that benefit if we take back upon ourselves the responsibility
+of composing our classes “manually” by calling their constructors.</p>
+
+<p>The above mess is functionally identical to</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>protected override void Initialize()
+{
+    Container.RegisterSingleton&lt;ISomething, Something&gt;();
+    Container.RegisterSingleton&lt;ISomeOtherThing, SomethingElse&gt;();
+    Container.RegisterSingleton&lt;IFooRepository, SqlFooRepository&gt;
+        (new InjectionProperty("connectionString", _fooRepositoryConnectionString));
+    Container.RegisterSingleton&lt;IFooValidator, FooDataValidator&gt;("FooDataValidator");
+    Container.RegisterSingleton&lt;IFooValidator, FooInputValidator&gt;("FooInputValidator");
+    Container.RegisterSingleton&lt;IFooCalculator, FooCalculator&gt;();
+}
+</code></pre></div></div>
+
+<p>Hopefully this helps us to transform our dependency registration classes from giant, menacing beasts into a manageable herd of smaller, tamer beasts that we can harness to serve us or saddle and ride into code-refactoring victory. Or both!</p>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>

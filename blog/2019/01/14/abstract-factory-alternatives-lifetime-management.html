@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>Alternatives To Abstract Factories Part I - Lifetime Management</title>
+    <meta name="description" content="Wow, that’s got to be the most exciting title for a blog post, ever. It’s all about the minutiae.">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2019/01/14/abstract-factory-alternatives-lifetime-management.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Alternatives To Abstract Factories Part I - Lifetime Management</h1>
+    <p class="post-meta"><time datetime="2019-01-14T00:00:00-05:00" itemprop="datePublished">Jan 14, 2019</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>Wow, that’s got to be the most exciting title for a blog post, ever. It’s all about the minutiae.</p>
+
+<p>What do you see when you look at this class that depends on two interfaces which are injected into its constructor?</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">public</span> <span class="k">class</span> <span class="nc">DoesSomething</span>
+<span class="p">{</span>
+    <span class="k">private</span> <span class="k">readonly</span> <span class="n">IThingItNeeds</span> <span class="n">_thingItNeeds</span><span class="p">;</span>
+    <span class="k">private</span> <span class="k">readonly</span> <span class="n">IOtherThingItNeedsFactory</span> <span class="n">_otherThingFactory</span><span class="p">;</span>
+
+    <span class="k">public</span> <span class="nf">DoesSomething</span><span class="p">(</span>
+        <span class="n">IThingItNeeds</span> <span class="n">thingItNeeds</span><span class="p">,</span> 
+        <span class="n">IOtherThingItNeedsFactory</span> <span class="n">otherThingFactory</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="n">_thingItNeeds</span> <span class="p">=</span> <span class="n">thingItNeeds</span><span class="p">;</span>
+        <span class="n">_otherThingFactory</span> <span class="p">=</span> <span class="n">otherThingFactory</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="k">public</span> <span class="k">void</span> <span class="nf">DoIt</span><span class="p">()</span>
+    <span class="p">{</span>
+        <span class="n">_thingItNeeds</span><span class="p">.</span><span class="nf">CallSomeMethod</span><span class="p">();</span>                                  <span class="c1">// Uses one dependency...</span>
+        <span class="n">IOtherThing</span> <span class="n">otherThing</span> <span class="p">=</span> <span class="n">_otherThingFactory</span><span class="p">.</span><span class="nf">CreateOtherThing</span><span class="p">();</span>  <span class="c1">// Gets the other from the</span>
+        <span class="n">otherThing</span><span class="p">.</span><span class="nf">CallOtherMethod</span><span class="p">();</span>                                    <span class="c1">// factory and uses it.</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Why is one dependency is “directly” injected while the other for the other we inject an abstract factory and request the dependency from the factory?</p>
+
+<p>If you’ve seen classes like the above and created them, as I have, you might guess that the two dependencies have different lifetimes. For the first one a single instance is used and injected into other class instances over and over. But for the second one we need to ensure that a new instance is created each time <code class="highlighter-rouge">DoIt()</code> is called, so we use the factory to create a new instance.</p>
+
+<h3 id="the-problems-with-abstract-factories-for-lifetime-management">The Problems With Abstract Factories For Lifetime Management</h3>
+
+<p>What’s wrong with this? The problem is that it causes the class to know way too much about its dependencies. And what it knows could be wrong anyway.</p>
+
+<p>First, because from the viewpoint of <code class="highlighter-rouge">DoesSomething</code>, <code class="highlighter-rouge">IOtherThing</code> is an abstraction that it depends on. 
+The only thing <code class="highlighter-rouge">DoesSomething</code> should know is <code class="highlighter-rouge">IOtherThing</code> has a method it needs to call. 
+Now it knows more than that: It knows that <code class="highlighter-rouge">IOtherThing</code> must be transient - that is, it must have a shorter lifetime. 
+The point of dependency injection is so that a class only sees the abstraction it depends on without knowing anything about the implementation. 
+Why should it know or care whether the implementation is supposed to be transient?</p>
+
+<p>Second, this doesn’t even make sense because the abstract factory is also an abstraction. 
+The class shouldn’t know how that factory provides an instance of the dependency. 
+How does the class know that the instance of the dependency returned by the factory is a new, transient instance?
+It doesn’t. Maybe the abstract factory is returning the same instance of the dependency over and over. There’s a big assumption here about the implementation 
+details of that abstract factory, and it could be wrong.</p>
+
+<p>Third, what if the class didn’t orginally depend on the factory but then I introduce it to manage the lifetime of the dependency? 
+That means that I’m modifying a class because of details of the implementation of an abstraction it depends on. 
+The abstraction was supposed to keep my class decoupled from the implementation, and now I’ve defeated that purpose.</p>
+
+<p>So in this case, unless we make assumptions about how the factory works, we’ve haven’t change much by introducing the factory except adding some complication.
+We were receiving the dependency by injection, and it may or may not be transient. Now we’re getting it from the factory, and what we get from the factory may or may not be transient.</p>
+
+<h3 id="use-transient-dependencies">Use Transient Dependencies</h3>
+
+<p>The place to manage the lifetime of dependencies isn’t in the class that depends on them but in the composition root - likely an IoC container - which is where we specify how dependencies are created and how long they exist.</p>
+
+<p>For instance, if I’m using an <code class="highlighter-rouge">ServiceCollection</code> - the default IoC container for ASP.NET Core applications, also available in the Microsoft.Extensions.DependencyInjection NuGet package, and I register the above dependencies like this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">IServiceCollection</span> <span class="n">serviceCollection</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">ServiceCollection</span><span class="p">();</span>
+<span class="n">serviceCollection</span><span class="p">.</span><span class="n">AddSingleton</span><span class="p">&lt;</span><span class="n">NeedsDependencies</span><span class="p">&gt;();</span>
+<span class="n">serviceCollection</span><span class="p">.</span><span class="n">AddSingleton</span><span class="p">&lt;</span><span class="n">IThingItNeeds</span><span class="p">,</span> <span class="n">ThingItNeeds</span><span class="p">&gt;();</span>
+<span class="n">serviceCollection</span><span class="p">.</span><span class="n">AddSingleton</span><span class="p">&lt;</span><span class="n">IOtherThing</span><span class="p">,</span> <span class="n">ShortLivedOtherThing</span><span class="p">&gt;();</span>
+</code></pre></div></div>
+<p>What happens? <code class="highlighter-rouge">AddSingleton</code> means that the first time <code class="highlighter-rouge">NeedsDependencies</code> is resolved, the other two dependencies are also resolved and injected into it, and then the container re-uses them forever, returning the same instances. If I need a new instance of <code class="highlighter-rouge">ShortLivedOtherThing</code>, too bad. I’m not going to get one.</p>
+
+<p>If I change it to this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">IServiceCollection</span> <span class="n">serviceCollection</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">ServiceCollection</span><span class="p">();</span>
+<span class="n">serviceCollection</span><span class="p">.</span><span class="n">AddTransient</span><span class="p">&lt;</span><span class="n">NeedsDependencies</span><span class="p">&gt;();</span>
+<span class="n">serviceCollection</span><span class="p">.</span><span class="n">AddSingleton</span><span class="p">&lt;</span><span class="n">IThingItNeeds</span><span class="p">,</span> <span class="n">ThingItNeeds</span><span class="p">&gt;();</span>
+<span class="n">serviceCollection</span><span class="p">.</span><span class="n">AddTransient</span><span class="p">&lt;</span><span class="n">IOtherThing</span><span class="p">,</span> <span class="n">ShortLivedOtherThing</span><span class="p">&gt;();</span>
+</code></pre></div></div>
+
+<p>Now every time I resolve <code class="highlighter-rouge">NeedsDependencies</code>, the container will provide a new instance. 
+It will reuse <code class="highlighter-rouge">ThingItNeeds</code> because we know it’s okay to reuse that. But it will provide a new instance of <code class="highlighter-rouge">ShortLivedOtherThing</code> each time.
+That’s what <em>transient</em> means.</p>
+
+<p>(What if I register a class as a singleton and its dependency as transient? That doesn’t do any good, because if the class instance lives forever then its dependencies live forever, too.)</p>
+
+<p>Should we worry excessively about making dependencies transient? Will our application suffer because we’re creating class instance and over? <em>Probably</em> not.</p>
+
+<p>Creating a new instance each time we need one isn’t as efficient as reusing an instance, but more often than not the difference is minute. 
+Consider a web application. During the processing of each and every request, how many class instances are created and then go out of scope in the framework code that we aren’t even aware of? 
+How much middleware code is invoked? How many objects have their properties read to render views as HTML? 
+There’s a lot going on. I’m not saying that it never matters, but odds are that creating a few more classes when they’re needed will have no discernible impact whatsoever. 
+What does have an impact? The bugs introduced by incorrectly using a singleton.</p>
+
+<h3 id="use-scoped-dependencies">Use Scoped Dependencies</h3>
+
+<p>In an ASP.NET Core application (and in some other scenarios) we might do this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">IServiceCollection</span> <span class="n">serviceCollection</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">ServiceCollection</span><span class="p">();</span>
+<span class="n">serviceCollection</span><span class="p">.</span><span class="n">AddScoped</span><span class="p">&lt;</span><span class="n">NeedsDependencies</span><span class="p">&gt;();</span>
+<span class="n">serviceCollection</span><span class="p">.</span><span class="n">AddSingleton</span><span class="p">&lt;</span><span class="n">IThingItNeeds</span><span class="p">,</span> <span class="n">ThingItNeeds</span><span class="p">&gt;();</span>
+<span class="n">serviceCollection</span><span class="p">.</span><span class="n">AddScoped</span><span class="p">&lt;</span><span class="n">IOtherThing</span><span class="p">,</span> <span class="n">ShortLivedOtherThing</span><span class="p">&gt;();</span>
+</code></pre></div></div>
+
+<p>In ASP.NET Core, <code class="highlighter-rouge">NeedsDependencies</code> is neither a singleton nor transient. 
+If an instance is resolved during the processing of a web request, it will then be reused every time another instance is resolved during that same web request. 
+When it is created, its dependency - <code class="highlighter-rouge">ShortLivedOtherThing</code> is created too. 
+(It could be transient. Either way it will get created once every time <code class="highlighter-rouge">NeedsDependencies</code> is created, once per request.)
+That’s useful if a class retrieves data specific to the user making the request. We don’t want to retrieve the data over and over, but we want to be sure the same data isn’t used when handling another user’s request.</p>
+
+<p>(A few years ago before ASP.NET Core we had to add all sorts of weird boilerplate code to ASP.NET MVC to use a container with per-request scoped dependencies. This is way better.)</p>
+
+<h3 id="fix-the-dependency-so-it-doesnt-need-to-be-transient">Fix the Dependency So It Doesn’t Need to Be Transient</h3>
+
+<p>Why does a particular class need to be transient? Perhaps because it’s not thread safe or maintains some user or request-specific state. If so, can we fix it so that we <em>can</em> reuse it?</p>
+
+<p>Much of the time we can create classes so that invoking their methods doesn’t modify their state. 
+A stateless class doesn’t have private fields and properties that are modified when executing methods, so thread safety and reuse aren’t an issue. 
+As a habit I try to write all classes that way unless they exist specifically to contain data that changes.</p>
+
+<p>Recently I ran into a scenario where use of a third-party library kept a class from being thread safe. 
+In this case I wasn’t using an IoC container at all (and couldn’t), so reworking it to make some dependencies transitive would have been a hassle.</p>
+
+<p>In this case the issue was easily fixed by making one member static and using a <a href="https://docs.microsoft.com/en-us/dotnet/api/system.threadstaticattribute"><code class="highlighter-rouge">ThreadStatic</code> attribute</a>. 
+That’s something I rarely use, but it made more sense to modify the code where the problem was instead of changing everything else to work around it.</p>
+
+<hr />
+<p>The preferred use of an abstract factory is when we need the implementation of a dependency to vary according to some runtime value. 
+For example we might have a class representing a sales order, and we might need to select an implementation of sales tax logic according to the state or region where it will ship.</p>
+
+<p>Even in a scenario where an abstract factory makes sense, what if we didn’t initially use one and now we need one? 
+Must we modify existing classes to depend on an abstract factory? Maybe, but there are alternatives. 
+I was going to discuss them in this post, but I’ll leave it for the next one. What comes to your mind? Maybe we’ll converge on some of the same answers.</p>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>

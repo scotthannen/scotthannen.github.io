@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>ASP.NET 5/Core Configuration Settings - Starting From Zero</title>
+    <meta name="description" content="This content is dated. What you’re looking for is Options Pattern in ASP.NET Core.We’ve come a long way from the painful awkwardness of custom configuration ...">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2016/03/19/aspdotnet5-core-configuration-settings-starting-from-zero.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">ASP.NET 5/Core Configuration Settings - Starting From Zero</h1>
+    <p class="post-meta"><time datetime="2016-03-19T07:20:58-04:00" itemprop="datePublished">Mar 19, 2016</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>This content is dated. What you’re looking for is <a href="https://docs.microsoft.com/en-us/aspnet/core/fundamentals/configuration/options">Options Pattern in ASP.NET Core</a>.
+We’ve come a long way from the painful awkwardness of <a href="https://msdn.microsoft.com/en-us/library/2tw134k3.aspx">custom configuration sections</a>.
+Finding documentation was difficult, and creating complex objects was a chore. I’m still amazed at how much easier the options pattern is.</p>
+
+<h2 id="the-old-way-webconfig">The Old Way: web.config</h2>
+
+<p><code class="highlighter-rouge">web.config</code> is familiar and comfortable, but to use it without coupling to it took a few extra steps. For example, we could create an interface bearing the properties we need, and inject that into a controller:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="k">public</span> <span class="k">interface</span> <span class="nc">IPagingSettings</span>
+        <span class="p">{</span>
+            <span class="kt">int</span> <span class="n">PageSize</span> <span class="p">{</span> <span class="k">get</span><span class="p">;</span> <span class="p">}</span>
+            <span class="kt">int</span> <span class="n">PrefetchPages</span> <span class="p">{</span> <span class="k">get</span><span class="p">;</span> <span class="p">}</span>
+        <span class="p">}</span>
+</code></pre></div></div>
+
+<p>and then create an implementation that reads from <code class="highlighter-rouge">&lt;appSettings&gt;</code>. (I’m glossing over some of the additional steps to ensure that the values can be parsed, aren’t missing, etc.)</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="k">public</span> <span class="k">class</span> <span class="nc">PageSettingsFromAppSettings</span> <span class="p">:</span> <span class="n">IPagingSettings</span>
+        <span class="p">{</span>
+            <span class="k">public</span> <span class="kt">int</span> <span class="n">PageSize</span> <span class="p">{</span> <span class="k">get</span> <span class="p">{</span> <span class="k">return</span> <span class="kt">int</span><span class="p">.</span><span class="nf">Parse</span><span class="p">(</span><span class="n">ConfigurationManager</span><span class="p">.</span><span class="n">AppSettings</span><span class="p">[</span><span class="s">"pagingSettings:pageSize"</span><span class="p">]);</span> <span class="p">}}</span>
+            <span class="k">public</span> <span class="kt">int</span> <span class="n">PrefetchPages</span> <span class="p">{</span> <span class="k">get</span> <span class="p">{</span> <span class="k">return</span> <span class="kt">int</span><span class="p">.</span><span class="nf">Parse</span><span class="p">(</span><span class="n">ConfigurationManager</span><span class="p">.</span><span class="n">AppSettings</span><span class="p">[</span><span class="s">"pagingSettings:prefetchPages"</span><span class="p">]);</span> <span class="p">}}</span>
+        <span class="p">}</span>
+</code></pre></div></div>
+
+<p>It’s much easier to just call <code class="highlighter-rouge">&lt;appSettings&gt;</code> straight from a controller or other classes, even though they shouldn’t have a direct dependency on <code class="highlighter-rouge">ConfigurationManager</code>, and so more often than not that’s what happened.</p>
+
+<h2 id="the-new-way-configuration-decoupled-from-a-file">The New Way: Configuration Decoupled From a File</h2>
+
+<p>ASP.NET Core makes it much easier for us to define classes containing the settings we need and then populate those classes using a file or any other way we want to. But so far I’ve encountered code samples that show either too little (no context, what class is this code sample in?) or too much (big overview, thanks, now how do I store and retrieve a setting?) Maybe I’m just impatient. So I’m going to work throught and document how to perform the simple tasks I need from end to end. Those are:</p>
+
+<ul>
+  <li>Retrieve an application-wide setting</li>
+  <li>Retrieve a class-specific setting - more like the equivalent of a custom <code class="highlighter-rouge">ConfigurationSection</code>.<br />
+<em>From what I’ve read so far I suspect that the way the above two are done will be exactly the same.</em></li>
+  <li>Retrieve a connection string</li>
+  <li>Understand how to supply these settings without depending on any configuration file</li>
+</ul>
+
+<h3 id="retrieve-an-application-wide-setting">Retrieve an Application-Wide Setting</h3>
+
+<p>Without overthinking it, I want to have the equivalent of <code class="highlighter-rouge">&lt;appSettings&gt;</code>, and in it a setting called <code class="highlighter-rouge">SiteName</code> containing the display name of my site. I don’t think I’m ever going to want to do this. If I were injecting this into a class the interface would be <code class="highlighter-rouge">IAppSettings</code> or an instance of <code class="highlighter-rouge">AppSettings</code>, and I think that’s just way too general. It doesn’t follow the principle of <em>interface segregation</em> (SOL<strong><em>I</em></strong>D.) But whatever, I’m doing it!</p>
+
+<h4 id="1-create-the-project">1. Create the Project</h4>
+
+<p>I started with an empty ASP.NET 5 preview template. It was missing the references for MVC controller. Add a NuGet package - no dice. I’m trying to learn how to configure settings, not how to create an empty project. (One thing at a time.) So I deleted it and started an ASP.NET preview Web Application project which contains all sorts of sample pages I don’t care about. But I don’t care right now. I’m back on track.</p>
+
+<h4 id="2-add-a-controller-to-test-the-setting-im-about-to-create">2. Add a Controller To Test the Setting I’m About to Create</h4>
+
+<p>I right-clicked my project, selected Add New Item -&gt; MVC Controller Class -&gt; named “TestMyAppSettingsController”</p>
+
+<p>Here’s the controller:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="k">public</span> <span class="k">class</span> <span class="nc">TestMyAppSettingsController</span> <span class="p">:</span> <span class="n">Controller</span>
+        <span class="p">{</span>
+            <span class="k">public</span> <span class="n">IActionResult</span> <span class="nf">Index</span><span class="p">()</span>
+            <span class="p">{</span>
+                <span class="k">return</span> <span class="nf">Content</span><span class="p">(</span><span class="s">"I will replace this with my setting."</span><span class="p">);</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+</code></pre></div></div>
+
+<p>I tested it ([my localhost]/TestMyAppSettings) and it returns my content. Now I’m ready to create my <code class="highlighter-rouge">appSettings</code> type interface or class and inject it into this controller.</p>
+
+<h4 id="3-create-my-appsettings-equivalent">3. Create My “appSettings” equivalent</h4>
+
+<p>Again, I think this is too vague. But I’m going to learn this by repeating what I know and <em>then</em> changing it. I opened <code class="highlighter-rouge">config.json</code> and found that Microsoft apparently read my mind from the past when creating their sample application.</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="w">        </span><span class="p">{</span><span class="w">
+          </span><span class="s2">"AppSettings"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+            </span><span class="s2">"SiteTitle"</span><span class="p">:</span><span class="w"> </span><span class="s2">"TestAspNetCoreSettings"</span><span class="w">
+          </span><span class="p">},</span><span class="w">
+          </span><span class="s2">"Data"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+            </span><span class="s2">"DefaultConnection"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+              </span><span class="s2">"ConnectionString"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Server=(localdb)</span><span class="se">\\</span><span class="s2">mssqllocaldb;Database=aspnet5-TestAspNetCoreSettings-69648091-510d-440f-bbd7-7157691e47f0;Trusted_Connection=True;MultipleActiveResultSets=true"</span><span class="w">
+            </span><span class="p">}</span><span class="w">
+          </span><span class="p">}</span><span class="w">
+        </span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<p>Creepy, but it in a good way. But I want a <code class="highlighter-rouge">SiteName</code> setting, not <code class="highlighter-rouge">SiteTitle</code>. So I’ll edit the AppSettings section:</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="w">          </span><span class="s2">"AppSettings"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+            </span><span class="s2">"SiteTitle"</span><span class="p">:</span><span class="w"> </span><span class="s2">"TestAspNetCoreSettings"</span><span class="p">,</span><span class="w">
+            </span><span class="s2">"SiteName"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Scott's Awesome Site"</span><span class="w">
+          </span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<p>So how will my value get into this controller?</p>
+
+<p>There needs to be a class that maps to the AppSettings section in config.json. So I’ve added this class (I created a “Settings” folder and put it in there.)</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="k">public</span> <span class="k">class</span> <span class="nc">AppSettings</span>
+        <span class="p">{</span>
+            <span class="k">public</span> <span class="kt">string</span> <span class="n">SiteTitle</span> <span class="p">{</span> <span class="k">get</span><span class="p">;</span> <span class="k">set</span><span class="p">;</span> <span class="p">}</span>
+            <span class="k">public</span> <span class="kt">string</span> <span class="n">SiteName</span> <span class="p">{</span> <span class="k">get</span><span class="p">;</span> <span class="k">set</span><span class="p">;</span> <span class="p">}</span>
+        <span class="p">}</span>
+</code></pre></div></div>
+
+<p>Now I need to populate my AppSettings class with the values from config.json. <em>This part is really nice</em> because it’s understood that we’ll want to use dependency injection, in this case to insert an instance of <code class="highlighter-rouge">AppSettings</code> into a controller. So the place where I set this up is in the <code class="highlighter-rouge">ConfigureServices()</code> method in startup.cs, where we configure all of our dependency injection.</p>
+
+<p>I’m adding just one line at the end of this method:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="n">services</span><span class="p">.</span><span class="nf">AddTransient</span><span class="p">(</span><span class="n">settings</span> <span class="p">=&gt;</span> <span class="n">ConfigurationBinder</span><span class="p">.</span><span class="n">Bind</span><span class="p">&lt;</span><span class="n">AppSettings</span><span class="p">&gt;(</span><span class="n">Configuration</span><span class="p">.</span><span class="nf">GetConfigurationSection</span><span class="p">(</span><span class="s">"AppSettings"</span><span class="p">)));</span>
+</code></pre></div></div>
+
+<p>Translation: Dependency injection container, when I ask for an instance of <code class="highlighter-rouge">AppSettings</code>, resolve a new (transient) instance from the section in my configuration named “AppSettings.”</p>
+
+<p>Next I’ll modify my controller so that it expects an instance of AppSettings to be injected. It just assumes that when the constructor is called that argument will be supplied.</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="k">public</span> <span class="k">class</span> <span class="nc">TestMyAppSettingsController</span> <span class="p">:</span> <span class="n">Controller</span>
+        <span class="p">{</span>
+            <span class="k">private</span> <span class="k">readonly</span> <span class="n">AppSettings</span> <span class="n">_appSettings</span><span class="p">;</span>
+
+            <span class="k">public</span> <span class="nf">TestMyAppSettingsController</span><span class="p">(</span><span class="n">AppSettings</span> <span class="n">appSettings</span><span class="p">)</span>
+            <span class="p">{</span>
+                <span class="n">_appSettings</span> <span class="p">=</span> <span class="n">appSettings</span><span class="p">;</span>
+            <span class="p">}</span>
+
+            <span class="k">public</span> <span class="n">IActionResult</span> <span class="nf">Index</span><span class="p">()</span>
+            <span class="p">{</span>
+                <span class="k">return</span> <span class="nf">Content</span><span class="p">(</span><span class="n">_appSettings</span><span class="p">.</span><span class="n">SiteName</span><span class="p">);</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+</code></pre></div></div>
+
+<h4 id="4-it-works">4. It Works!</h4>
+
+<p>And then, like auto-magic, I test my controller again and this time it returns the value - “Scott’s Awesome Site” - from the instance of <code class="highlighter-rouge">AppSettings</code> which was populated from config.json. (I’m glossing over the seven or eight times it didn’t work and skipping to what actually worked.)</p>
+
+<p>Two important details to note:</p>
+
+<ul>
+  <li>In the above line of code, <code class="highlighter-rouge">Configuration</code> is not just some container for config.json. It’s a <code class="highlighter-rouge">Microsoft.Framework.Configuration.ConfigurationSection</code> which contains configuration data from multiple sources <em>including</em> config.json. (Look at the <code class="highlighter-rouge">Startup()</code> method and you’ll see how it’s specified which sources make up <code class="highlighter-rouge">Configuration</code>.) That’s going to be really useful, because it means that we can add into our <code class="highlighter-rouge">Configuration</code> other .json files, other types of files, or sources that don’t even come from files. In old ASP.NET world, “Configuration” meant your .config file. Now it can be anything.</li>
+  <li>Why transient? Why create a new instance each time? Because the properties of <code class="highlighter-rouge">AppSettings</code> aren’t read-only. If I’m just passing around one instance then something somewhere could change a property, affecting the entire site. If I make them read-only then they don’t get populated by the above line of code. I would prefer to make this a singleton but for the moment I’m happy just to have it working. I’ll come back to that.</li>
+</ul>
+
+<p>I said this was going to be my equivalent of <code class="highlighter-rouge">AppSettings</code>, but in reality there’s nothing about it that’s different from any other class, including the one I’m going to create next.</p>
+
+<h3 id="retrieve-a-class-specific-setting">Retrieve a Class-Specific Setting</h3>
+
+<p>By “class-specific” I just mean something less vague and general than <code class="highlighter-rouge">AppSettings</code> - settings which may be required by a specific class or group of classes.</p>
+
+<p>Again, this is just going to be the same as what we just did. But because it looks so easy, I’m going to put these settings in a separate file. Won’t that be nice - instead of having one ginormous configuration file (ok, there were ways to externalize sections) it’s going to be very easy to separate settings into their own files.</p>
+
+<p>This time I’m going to start with the class, and I want to make a few things different:</p>
+
+<ul>
+  <li>I want the values to be read-only so I can create a singleton and not worry that anything will change its values.</li>
+  <li>Instead of just strings I want to use a few other types, including at least one collection.</li>
+</ul>
+
+<p>Here’s the class and corresponding interfaces. (Don’t think about what the properties mean. They mean nothing.) It’s a little extra code but it’s so much easier than defining a custom <code class="highlighter-rouge">ConfigurationSection</code>. Maybe this isn’t worth the effort and this should also be transient. But if we can do it the hard way then we know we can do it the easy way.</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="k">public</span> <span class="k">interface</span> <span class="nc">IFooSettings</span>
+        <span class="p">{</span>
+            <span class="kt">string</span> <span class="n">Name</span> <span class="p">{</span> <span class="k">get</span><span class="p">;</span> <span class="p">}</span>
+            <span class="n">IEnumerable</span> <span class="n">Foos</span> <span class="p">{</span> <span class="k">get</span><span class="p">;</span> <span class="p">}</span>
+        <span class="p">}</span>
+        <span class="k">public</span> <span class="k">interface</span> <span class="nc">IFoo</span>
+        <span class="p">{</span>
+            <span class="kt">string</span> <span class="n">Color</span> <span class="p">{</span> <span class="k">get</span><span class="p">;</span>  <span class="p">}</span>
+            <span class="kt">double</span> <span class="n">BarUnits</span> <span class="p">{</span> <span class="k">get</span><span class="p">;</span>  <span class="p">}</span>
+        <span class="p">}</span>
+
+        <span class="k">public</span> <span class="k">class</span> <span class="nc">FooSettings</span> <span class="p">:</span> <span class="n">IFooSettings</span>
+        <span class="p">{</span>
+            <span class="k">public</span> <span class="kt">string</span> <span class="n">Name</span> <span class="p">{</span> <span class="k">get</span><span class="p">;</span> <span class="k">set</span><span class="p">;</span> <span class="p">}</span>
+            <span class="k">public</span> <span class="n">List</span><span class="p">&lt;</span><span class="n">Foo</span><span class="p">&gt;</span> <span class="n">FooList</span> <span class="p">{</span> <span class="k">get</span><span class="p">;</span> <span class="k">set</span><span class="p">;</span> <span class="p">}</span>
+
+            <span class="k">public</span> <span class="n">IEnumerable</span> <span class="n">Foos</span>
+            <span class="p">{</span>
+                <span class="k">get</span>
+                <span class="p">{</span>
+                    <span class="k">if</span> <span class="p">(</span><span class="n">FooList</span> <span class="p">==</span> <span class="k">null</span><span class="p">)</span> <span class="n">FooList</span> <span class="p">=</span> <span class="k">new</span> <span class="n">List</span><span class="p">&lt;</span><span class="n">Foo</span><span class="p">&gt;();</span>
+                    <span class="k">return</span> <span class="n">FooList</span><span class="p">.</span><span class="n">Cast</span><span class="p">&lt;</span><span class="n">IFoo</span><span class="p">&gt;();</span>
+                <span class="p">}</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+
+        <span class="k">public</span> <span class="k">class</span> <span class="nc">Foo</span> <span class="p">:</span> <span class="n">IFoo</span>
+        <span class="p">{</span>
+            <span class="k">public</span> <span class="kt">string</span> <span class="n">Color</span> <span class="p">{</span> <span class="k">get</span><span class="p">;</span> <span class="k">set</span><span class="p">;</span> <span class="p">}</span>
+            <span class="k">public</span> <span class="kt">double</span> <span class="n">BarUnits</span> <span class="p">{</span> <span class="k">get</span><span class="p">;</span> <span class="k">set</span><span class="p">;</span> <span class="p">}</span>
+        <span class="p">}</span>
+</code></pre></div></div>
+
+<p>Next, a fooSettings.json file:</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="w">        </span><span class="p">{</span><span class="w">
+          </span><span class="s2">"FooSettings"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+            </span><span class="s2">"Name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"MyFooSettings"</span><span class="p">,</span><span class="w">
+            </span><span class="s2">"FooList"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+              </span><span class="p">{</span><span class="w">
+                </span><span class="s2">"Color"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Red"</span><span class="p">,</span><span class="w">
+                </span><span class="s2">"BarUnits"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1.5"</span><span class="w">
+              </span><span class="p">},</span><span class="w">      </span><span class="p">{</span><span class="w">
+                </span><span class="s2">"Color"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Blue"</span><span class="p">,</span><span class="w">
+                </span><span class="s2">"BarUnits"</span><span class="p">:</span><span class="w"> </span><span class="s2">"3.14159'"</span><span class="w">
+              </span><span class="p">},</span><span class="w">      </span><span class="p">{</span><span class="w">
+                </span><span class="s2">"Color"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Green"</span><span class="p">,</span><span class="w">
+                </span><span class="s2">"BarUnits"</span><span class="p">:</span><span class="w"> </span><span class="s2">"-0.99999"</span><span class="w">
+              </span><span class="p">}</span><span class="w">
+            </span><span class="p">]</span><span class="w">
+          </span><span class="p">}</span><span class="w">
+        </span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<p>Then, in <code class="highlighter-rouge">Startup()</code> (in Startup.cs) where we specify what goes into our <code class="highlighter-rouge">Configuration</code>, I’ll add <code class="highlighter-rouge">fooSettings.json</code>:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="kt">var</span> <span class="n">builder</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">ConfigurationBuilder</span><span class="p">(</span><span class="n">appEnv</span><span class="p">.</span><span class="n">ApplicationBasePath</span><span class="p">)</span>
+            <span class="p">.</span><span class="nf">AddJsonFile</span><span class="p">(</span><span class="s">"config.json"</span><span class="p">)</span>
+            <span class="p">.</span><span class="nf">AddJsonFile</span><span class="p">(</span><span class="s">$"config.</span><span class="p">{</span><span class="n">env</span><span class="p">.</span><span class="n">EnvironmentName</span><span class="p">}</span><span class="s">.json"</span><span class="p">,</span> <span class="n">optional</span><span class="p">:</span> <span class="k">true</span><span class="p">)</span>
+            <span class="p">.</span><span class="nf">AddJsonFile</span><span class="p">(</span><span class="s">"fooSettings.json"</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>Finally, in <code class="highlighter-rouge">ConfigureServices()</code> (also in Startup.cs) I’ll tell it to load an instance of <code class="highlighter-rouge">FooSettings</code>, cast it as <code class="highlighter-rouge">IFooSettings</code> (so the properties appear read-only) and supply that single instance for all dependencies on <code class="highlighter-rouge">IFooSettings</code>:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="kt">var</span> <span class="n">fooSettings</span> <span class="p">=</span> <span class="p">(</span><span class="n">IFooSettings</span><span class="p">)</span><span class="n">ConfigurationBinder</span><span class="p">.</span><span class="n">Bind</span><span class="p">&lt;</span><span class="n">FooSettings</span><span class="p">&gt;(</span><span class="n">Configuration</span><span class="p">.</span><span class="nf">GetConfigurationSection</span><span class="p">(</span><span class="s">"FooSettings"</span><span class="p">));</span>
+        <span class="n">services</span><span class="p">.</span><span class="nf">AddInstance</span><span class="p">(</span><span class="k">typeof</span> <span class="p">(</span><span class="n">IFooSettings</span><span class="p">),</span> <span class="n">fooSettings</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>I haven’t started doing unit tests yet. For the moment I just put a breakpoint on the second line to see if <code class="highlighter-rouge">fooSettings</code> had been created like I expected. No problem - it worked on the first try. (It even parsed my <code class="highlighter-rouge">double</code> values. If it can’t it just ignores them.) So now I can inject that into a controller:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="k">public</span> <span class="k">class</span> <span class="nc">TestFooSettingsController</span> <span class="p">:</span> <span class="n">Controller</span>
+        <span class="p">{</span>
+            <span class="k">private</span> <span class="k">readonly</span> <span class="n">IFooSettings</span> <span class="n">_fooSettings</span><span class="p">;</span>
+
+            <span class="k">public</span> <span class="nf">TestFooSettingsController</span><span class="p">(</span><span class="n">IFooSettings</span> <span class="n">fooSettings</span><span class="p">)</span>
+            <span class="p">{</span>
+                <span class="n">_fooSettings</span> <span class="p">=</span> <span class="n">fooSettings</span><span class="p">;</span>
+            <span class="p">}</span>
+
+            <span class="k">public</span> <span class="n">IActionResult</span> <span class="nf">Index</span><span class="p">()</span>
+            <span class="p">{</span>
+                <span class="kt">var</span> <span class="n">output</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">StringBuilder</span><span class="p">();</span>
+                <span class="n">output</span><span class="p">.</span><span class="nf">AppendLine</span><span class="p">(</span><span class="s">$"Name: </span><span class="p">{</span><span class="n">_fooSettings</span><span class="p">.</span><span class="n">Name</span><span class="p">}</span><span class="s">"</span><span class="p">);</span>
+                <span class="k">foreach</span> <span class="p">(</span><span class="n">IFoo</span> <span class="n">foo</span> <span class="k">in</span> <span class="n">_fooSettings</span><span class="p">.</span><span class="n">Foos</span><span class="p">)</span>
+                <span class="p">{</span>
+                    <span class="n">output</span><span class="p">.</span><span class="nf">AppendLine</span><span class="p">(</span><span class="s">$"Foo: </span><span class="p">{</span><span class="n">foo</span><span class="p">.</span><span class="n">Color</span><span class="p">}</span><span class="s">,</span><span class="p">{</span><span class="n">foo</span><span class="p">.</span><span class="n">BarUnits</span><span class="p">}</span><span class="s">"</span><span class="p">);</span>
+                <span class="p">}</span>
+                <span class="k">return</span> <span class="nf">Content</span><span class="p">(</span><span class="n">output</span><span class="p">.</span><span class="nf">ToString</span><span class="p">());</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+</code></pre></div></div>
+
+<p>Starting the site and browsing to [my localhost]/testfoosettings returns:</p>
+
+<pre>
+    Name: MyFooSettings
+    Foo: Red,1.5
+    Foo: Blue,3.14159
+    Foo: Green,-0.99999
+</pre>
+
+<h3 id="retrieve-a-connection-string">Retrieve a Connection String</h3>
+
+<p>I’m not even going to code this because it will look just like the previous examples:</p>
+
+<ul>
+  <li>Add the settings into a section in either config.json or some other .json file</li>
+  <li>Create a class that maps to that section (or I can do these steps in the other order)</li>
+  <li>Register the class in <code class="highlighter-rouge">ConfigureServices()</code> so I can inject it when needed.</li>
+</ul>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>When I typed the first paragraph I didn’t know how to define and use these configuration settings. That was a big obstacle to building a new ASP.NET Core application. There are still more best practices that I can discover and apply (like validation), but in order to do that I’d have to have it working first, which I now do.</p>
+
+<p>What’s different from using <code class="highlighter-rouge">web.config</code>?</p>
+
+<ul>
+  <li>Our classes depend on strongly-typed classes and interfaces for settings, not files. We can still <em>use</em> files, but we reference the classes, not the files.</li>
+  <li>We could do that before, but now it’s easier.</li>
+  <li>It’s also much easier to load more complex settings including nested values. We could do it before with a custom <code class="highlighter-rouge">ConfigurationSection</code> but good riddance.</li>
+</ul>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>

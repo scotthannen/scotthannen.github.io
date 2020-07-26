@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>Second Look at Promises using Native ES6 vs. q.js</title>
+    <meta name="description" content="When I first began using promises it was with the q.js library. Now the latest version of JavaScript - ES6 - has native support for promises. So I rewrote a ...">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2016/03/03/second-look-at-promises-native-es6.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Second Look at Promises using Native ES6 vs. q.js</h1>
+    <p class="post-meta"><time datetime="2016-03-03T06:20:58-05:00" itemprop="datePublished">Mar 3, 2016</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>When I first began using promises it was with the <a href="https://github.com/kriskowal/q">q.js</a> library. Now the latest version of JavaScript - ES6 - has <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Promise">native support</a> for promises. So I rewrote a <a href="/blog/2016/03/01/chained-promises-before-and-after.html">previous example</a> using native promises to see how that would work.</p>
+
+<p>The example (for better or worse) is a function for baking a cake. It requires four ingredients: flour, eggs, sugar, and frosting. It “obtains” those ingredients via <code class="highlighter-rouge">$.ajax</code> calls. In the bad example (without promises) it creates a small-scale “callback heck.” (Family blog.) The callback for each <code class="highlighter-rouge">$.ajax</code> call makes the next <code class="highlighter-rouge">$.ajax</code> call. Not only does it make some ugly code (pyramid of doom) but it means that the calls are done sequentially. It would be quicker if we made all the calls at once (getting all of the ingredients) and baked the cake as soon as the last ingredient arrived.</p>
+
+<p>You can <a href="/blog/2016/03/01/chained-promises-before-and-after.html">look back at that post</a> to see the bad example. With error handling it’s about 30 lines, and it would be very difficult to modify. Here’s the same thing with ES6 promises. It’s much shorter, easier to read, and even a little bit simpler than the same thing done with q.js.</p>
+
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="kd">function</span> <span class="nx">mix</span><span class="p">(</span><span class="nx">flour</span><span class="p">,</span> <span class="nx">eggs</span><span class="p">,</span> <span class="nx">sugar</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="nx">flour</span> <span class="o">+</span> <span class="s2">","</span> <span class="o">+</span> <span class="nx">eggs</span> <span class="o">+</span> <span class="s2">","</span> <span class="o">+</span> <span class="nx">sugar</span> <span class="o">+</span> <span class="s2">"_mixed"</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="kd">function</span> <span class="nx">bake</span><span class="p">(</span><span class="nx">batter</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="nx">batter</span> <span class="o">+</span> <span class="s2">"_baked"</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="kd">function</span> <span class="nx">frost</span><span class="p">(</span><span class="nx">cake</span><span class="p">,</span> <span class="nx">frosting</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="nx">cake</span> <span class="o">+</span> <span class="s2">"_frosted_with_"</span> <span class="o">+</span> <span class="nx">frosting</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="kd">function</span> <span class="nx">deliverTheCake</span><span class="p">(</span><span class="nx">cake</span><span class="p">)</span> <span class="p">{</span>
+      <span class="nx">alert</span><span class="p">(</span><span class="s2">"The cake is delivered: "</span> <span class="o">+</span> <span class="nx">cake</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="kd">function</span> <span class="nx">makeExcuse</span><span class="p">(</span><span class="nx">error</span><span class="p">)</span> <span class="p">{</span>
+      <span class="nx">alert</span><span class="p">(</span><span class="s2">"Sorry, can't finish the cake because: "</span> <span class="o">+</span> <span class="nx">error</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="kd">function</span> <span class="nx">getCake</span><span class="p">()</span> <span class="p">{</span>
+      <span class="kd">var</span> <span class="nx">getFrosting</span> <span class="o">=</span> <span class="nx">fetch</span><span class="p">(</span><span class="s2">"/api/getFrosting"</span><span class="p">);</span>
+      <span class="kd">var</span> <span class="nx">bakeCake</span> <span class="o">=</span> <span class="nb">Promise</span><span class="p">.</span><span class="nx">all</span><span class="p">([</span><span class="nx">fetch</span><span class="p">(</span><span class="s2">"/api/getFlour"</span><span class="p">),</span> <span class="nx">fetch</span><span class="p">(</span><span class="s2">"/api/getEggs"</span><span class="p">),</span> <span class="nx">fetch</span><span class="p">(</span><span class="s2">"/api/getSugar"</span><span class="p">)])</span>
+        <span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">ingredients</span><span class="p">)</span> <span class="p">{</span>
+          <span class="k">return</span> <span class="nx">mix</span><span class="p">.</span><span class="nx">apply</span><span class="p">(</span><span class="k">this</span><span class="p">,</span> <span class="nx">ingredients</span><span class="p">);</span>
+        <span class="p">})</span>
+        <span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="nx">bake</span><span class="p">);</span>
+      <span class="k">return</span> <span class="nb">Promise</span><span class="p">.</span><span class="nx">all</span><span class="p">([</span><span class="nx">bakeCake</span><span class="p">,</span> <span class="nx">getFrosting</span><span class="p">])</span>
+        <span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">cakeAndFrosting</span><span class="p">)</span> <span class="p">{</span>
+          <span class="k">return</span> <span class="nx">frost</span><span class="p">.</span><span class="nx">apply</span><span class="p">(</span><span class="k">this</span><span class="p">,</span> <span class="nx">cakeAndFrosting</span><span class="p">);</span>
+        <span class="p">});</span>
+    <span class="p">}</span>
+
+    <span class="nx">getCake</span><span class="p">().</span><span class="nx">then</span><span class="p">(</span><span class="nx">deliverTheCake</span><span class="p">).</span><span class="k">catch</span><span class="p">(</span><span class="nx">makeExcuse</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>The output, which is just for debugging purposes, is <code class="highlighter-rouge">The cake is delivered: flour,eggs,sugar_mixed_baked_frosted_with_frosting.</code> <a href="https://jsfiddle.net/scotthannen/uxzx7bzg/9/">Here’s the sample</a> in a JSFiddle. I replaced <code class="highlighter-rouge">fetch</code> with my own mock function. It simulates the ingredients arriving in unpredictable sequence and random errors. (JSFiddle has a way of mocking api calls but I got tired of messing with it.)</p>
+
+<h2 id="whats-different">What’s Different?</h2>
+
+<p>The ES6 version is a little bit shorter. That’s mostly because in the q.js example I was using a deferred. ES6 promises don’t have a deferred. And as it turned out, I didn’t need it. Those were just a few extra lines of code. Here are a few differences with ES6:</p>
+
+<h3 id="fetch">Fetch</h3>
+
+<p>Using q.js I had to create an additional function to return a promise for the result of a jQuery <code class="highlighter-rouge">$.ajax</code> call. Now I don’t need that function. I’m not even using jQuery. Instead I’m using another new ES6 function, <a href="https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch"><code class="highlighter-rouge">fetch</code></a>. It makes an HTTP request, like <code class="highlighter-rouge">XMLHttpRequest</code>, and returns a promise.</p>
+
+<h3 id="no-deferred">No Deferred</h3>
+
+<p>Using q.js, one might create a deferred, return a promise for the deferred, and then resolve or reject the deferred to produce the result of the promise. Like this:</p>
+
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="kd">function</span> <span class="nx">getAjaxPromise</span><span class="p">(</span><span class="nx">url</span><span class="p">)</span> <span class="p">{</span>
+      <span class="kd">var</span> <span class="nx">deferred</span> <span class="o">=</span> <span class="nx">Q</span><span class="p">.</span><span class="nx">defer</span><span class="p">();</span>
+        <span class="nx">$</span><span class="p">.</span><span class="nx">ajax</span><span class="p">(</span><span class="nx">url</span><span class="p">,{</span> <span class="na">success</span><span class="p">:</span> <span class="nx">deferred</span><span class="p">.</span><span class="nx">resolve</span><span class="p">,</span> <span class="na">error</span><span class="p">:</span> <span class="nx">deferred</span><span class="p">.</span><span class="nx">reject</span><span class="p">})</span>
+      <span class="k">return</span> <span class="nx">deferred</span><span class="p">.</span><span class="nx">promise</span><span class="p">;</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>But ES6 promises don’t have a deferred like q.js. True, we won’t need them as often. But sometimes it’s useful to return a promise that isn’t responsible for its own fulfillment. Perhaps some other event will cause it to be fulfilled. In that case you can use this function to create a deferred, and it works just like a q.js deferred.</p>
+
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="nb">Promise</span><span class="p">.</span><span class="nx">deferred</span> <span class="o">=</span> <span class="kd">function</span><span class="p">()</span> <span class="p">{</span>
+      <span class="kd">var</span> <span class="nx">result</span> <span class="o">=</span> <span class="p">{};</span>
+      <span class="nx">result</span><span class="p">.</span><span class="nx">promise</span> <span class="o">=</span> <span class="k">new</span> <span class="nb">Promise</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">resolve</span><span class="p">,</span> <span class="nx">reject</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nx">result</span><span class="p">.</span><span class="nx">resolve</span> <span class="o">=</span> <span class="nx">resolve</span><span class="p">;</span>
+        <span class="nx">result</span><span class="p">.</span><span class="nx">reject</span> <span class="o">=</span> <span class="nx">reject</span><span class="p">;</span>
+      <span class="p">});</span>
+      <span class="k">return</span> <span class="nx">result</span><span class="p">;</span>
+    <span class="p">};</span>
+
+    <span class="kd">var</span> <span class="nx">myDeferred</span> <span class="o">=</span> <span class="k">new</span> <span class="nb">Promise</span><span class="p">.</span><span class="nx">deferred</span><span class="p">();</span>
+
+    <span class="nx">myDeferred</span><span class="p">.</span><span class="nx">promise</span><span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">value</span><span class="p">){</span><span class="nx">alert</span><span class="p">(</span><span class="nx">value</span><span class="p">);})</span>
+
+    <span class="c1">//Then, at some later point:</span>
+    <span class="nx">myDeferred</span><span class="p">.</span><span class="nx">resolve</span><span class="p">(</span><span class="s2">"I am resolved!"</span><span class="p">);</span>
+</code></pre></div></div>
+
+<h3 id="no-qany">No <code class="highlighter-rouge">Q.any()</code></h3>
+
+<p>Q.any() takes an array of promises and returns a promise that resolves with whichever of those promises is resolved first. The closest thing in ES6 is <code class="highlighter-rouge">Promise.race().</code> It takes an array of promises and returns a promise that resolves or rejects with the first of that array that resolves or rejects. Big difference: you can’t wait for the first successful outcome.</p>
+
+<p>Browsing <a href="https://esdiscuss.org/topic/promise-any">a blog</a> I found this function to provide the same functionality as <code class="highlighter-rouge">Q.any().</code> I had to edit it just a little.</p>
+
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="nb">Promise</span><span class="p">.</span><span class="nx">any</span> <span class="o">=</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">promises</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="k">new</span> <span class="nb">Promise</span><span class="p">(</span><span class="kd">function</span> <span class="p">(</span><span class="nx">resolve</span><span class="p">,</span> <span class="nx">reject</span><span class="p">)</span> <span class="p">{</span>
+        <span class="kd">var</span> <span class="nx">count</span> <span class="o">=</span> <span class="nx">promises</span><span class="p">.</span><span class="nx">length</span><span class="p">,</span> <span class="nx">resolved</span> <span class="o">=</span> <span class="kc">false</span><span class="p">;</span>
+        <span class="kd">var</span> <span class="nx">errors</span> <span class="o">=</span> <span class="p">[];</span>
+        <span class="nx">promises</span><span class="p">.</span><span class="nx">forEach</span><span class="p">(</span><span class="kd">function</span> <span class="p">(</span><span class="nx">p</span><span class="p">)</span> <span class="p">{</span>
+          <span class="nb">Promise</span><span class="p">.</span><span class="nx">resolve</span><span class="p">(</span><span class="nx">p</span><span class="p">).</span><span class="nx">then</span><span class="p">(</span><span class="kd">function</span> <span class="p">(</span><span class="nx">value</span><span class="p">)</span> <span class="p">{</span>
+            <span class="nx">resolved</span> <span class="o">=</span> <span class="kc">true</span><span class="p">;</span>
+            <span class="nx">count</span><span class="o">--</span><span class="p">;</span>
+            <span class="nx">resolve</span><span class="p">(</span><span class="nx">value</span><span class="p">);</span>
+          <span class="p">},</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">e</span><span class="p">)</span> <span class="p">{</span>
+            <span class="nx">errors</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="nx">e</span><span class="p">);</span>
+            <span class="nx">count</span><span class="o">--</span><span class="p">;</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nx">count</span> <span class="o">===</span> <span class="mi">0</span> <span class="o">&amp;</span><span class="nx">amp</span><span class="p">;</span><span class="o">&amp;</span> <span class="o">!</span><span class="nx">resolved</span><span class="p">)</span> <span class="p">{</span>
+              <span class="nx">reject</span><span class="p">(</span><span class="nx">errors</span><span class="p">);</span>
+            <span class="p">}</span>
+          <span class="p">});</span>
+        <span class="p">});</span>
+      <span class="p">});</span>
+    <span class="p">};</span>
+</code></pre></div></div>
+
+<p><a href="https://jsfiddle.net/scotthannen/ss9fsfqv/4/">Here’s a JSFiddle</a> demonstrating how <code class="highlighter-rouge">deferred()</code> and <code class="highlighter-rouge">any()</code> can be used to create a promise that resolves when the first of an array of promises resolves.</p>
+
+<h3 id="no-spread">No <code class="highlighter-rouge">.spread()</code></h3>
+
+<p>This is trivial. Using q.js, <code class="highlighter-rouge">Q.spread()</code> converts the results of an array of promises to a list of method arguments. In the ES6 example we can do the same thing using <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/apply"><code class="highlighter-rouge">apply</code></a>.</p>
+
+<h2 id="conclusion">Conclusion</h2>
+
+<p>With a few minor adjustments we may not need an additional library like q.js to use promises - we can just use native ES6 promises instead. Also, there are a number of articles that refer to unnecessary deferreds as an antipattern, like <a href="https://github.com/petkaantonov/bluebird/wiki/Promise-anti-patterns">this one</a>. Omitting native support will help to reduce that. I found such an unnecessary deferred in my own example and I wonder how many I have in my code.</p>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>

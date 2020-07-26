@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>Extension Methods in .NET for Beginners</title>
+    <meta name="description" content="Extension methods are a convenience - a big convenience - that effectively allow you to add methods to an existing class without actually modifying that class.">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2016/06/25/extension-methods.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Extension Methods in .NET for Beginners</h1>
+    <p class="post-meta"><time datetime="2016-06-25T07:21:58-04:00" itemprop="datePublished">Jun 25, 2016</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>Extension methods are a convenience - a big convenience - that effectively allow you to add methods to an existing class without actually modifying that class.</p>
+
+<h2 id="syntax">Syntax</h2>
+
+<p>Extensions are static methods in static classes, like this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> <span class="nc">IntExtensions</span>
+<span class="p">{</span>
+    <span class="k">public</span> <span class="k">static</span> <span class="kt">bool</span> <span class="nf">IsInRange</span><span class="p">(</span><span class="k">this</span> <span class="kt">int</span> <span class="n">input</span><span class="p">,</span> <span class="kt">int</span> <span class="n">minimum</span><span class="p">,</span> <span class="kt">int</span> <span class="n">maximum</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="k">if</span><span class="p">(</span><span class="n">minimum</span> <span class="p">&gt;</span> <span class="n">maximum</span><span class="p">)</span> <span class="k">throw</span> <span class="k">new</span> <span class="nf">ArgumentException</span><span class="p">(</span><span class="s">"Minimum cannot be greater than maximum."</span><span class="p">);</span>
+        <span class="k">return</span> <span class="n">input</span> <span class="p">&gt;=</span> <span class="n">minimum</span> <span class="p">&amp;&amp;</span> <span class="n">input</span> <span class="p">&lt;=</span> <span class="n">maximum</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>This enables us to call <code class="highlighter-rouge">IsInRange</code> as if it was a method belonging to <code class="highlighter-rouge">int</code>.</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">var</span> <span class="n">x</span> <span class="p">=</span> <span class="m">10</span><span class="p">;</span>
+<span class="kt">var</span> <span class="n">isValid</span> <span class="p">=</span> <span class="n">x</span><span class="p">.</span><span class="nf">IsInRange</span><span class="p">(</span><span class="m">1</span><span class="p">,</span> <span class="m">100</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>What causes the static method <code class="highlighter-rouge">IsInRange</code> to behave as an extension is the keyword <code class="highlighter-rouge">this</code>.<br />
+Notice that even though the <code class="highlighter-rouge">IsInRange</code> method has a parameter (<code class="highlighter-rouge">string int</code>) we’re not explicitly passing it.<br />
+Instead, <code class="highlighter-rouge">x</code> is passed as the <code class="highlighter-rouge">input</code> parameter. Only one parameter per method can be prefaced with <code class="highlighter-rouge">this</code>.</p>
+
+<p>Functionally this is exactly the same as calling</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">isValid</span> <span class="p">=</span> <span class="n">IntExtensions</span><span class="p">.</span><span class="nf">IsInRange</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="m">1</span><span class="p">,</span> <span class="m">100</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>That’s why I call it a “convenience.” It’s just allowing me to pretend that <code class="highlighter-rouge">IsInRange</code> is a method of <code class="highlighter-rouge">int</code>.
+If <code class="highlighter-rouge">x</code> is an <code class="highlighter-rouge">int</code> and we type <code class="highlighter-rouge">x.</code> or even if we type <code class="highlighter-rouge">5.</code> then Visual Studio’s intellisense will show us the extension method.</p>
+
+<p>They are useful in two overlapping scenarios:</p>
+
+<h2 id="you-cant-add-new-methods-to-an-existing-class">You can’t add new methods to an existing class</h2>
+
+<p>Obviously we can’t modify the <code class="highlighter-rouge">int</code> class, as it’s part of the .NET framework. Extensions allow us a way around that.</p>
+
+<h2 id="you-shouldnt-add-new-methods-to-an-existing-class">You shouldn’t add new methods to an existing class.</h2>
+
+<p>This is even more important. If we <em>could</em> modify the <code class="highlighter-rouge">int</code> class and add an <code class="highlighter-rouge">IsInRange</code> method to it, <em>should</em> we?<br />
+We probably shouldn’t. Why not?</p>
+
+<h3 id="the-openclosed-principle">The Open/Closed Principle</h3>
+
+<p>The <a href="http://joelabrahamsson.com/a-simple-example-of-the-openclosed-principle">Open/Closed Principle</a> states:</p>
+
+<blockquote>
+  <p>Software entities (classes, modules, functions, etc.) should be open for extension, but closed for modification.</p>
+</blockquote>
+
+<p>In other words, the <code class="highlighter-rouge">int</code> class is done. It does what it needs to do and now it’s finished. If we modify it then perhaps we’ll break it. Do we want to test every single method and behavior of the <code class="highlighter-rouge">int</code> class, or risk having other classes that use <code class="highlighter-rouge">int</code> break? No, we want to leave it alone. Instead, just as the principle suggests, we’re <em>extending</em> it. The same is true if it’s our own class.</p>
+
+<h3 id="the-single-responsibility-principle">The Single Responsibility Principle</h3>
+
+<p>We may want to be able to call a method on a class, but does that mean that the class should have that method?<br />
+Consider, for example, <code class="highlighter-rouge">List&lt;T&gt;</code>. If we have a list of strings (<code class="highlighter-rouge">List&lt;string&gt;</code>) and some other collection of strings - another list, or an array - it could be useful to know which elements the two lists have in common. But the Single Responsibilty Principle indicates that a class shouldn’t take on too many responsibilities. The responsibility of a <code class="highlighter-rouge">List</code> is to contain the items that we add to it, not to inspect another <code class="highlighter-rouge">List</code> or an array and see what matches. So even if we could modify that class, it wouldn’t make sense to add that method to <code class="highlighter-rouge">List&lt;T&gt;</code>.<br />
+(Side note: Neither would we want to add that functionality by creating a new class that inherits from <code class="highlighter-rouge">List&lt;T&gt;</code>. That’s evil, but another story: <a href="http://stackoverflow.com/questions/49002/prefer-composition-over-inheritance">Prefer composition over inheritance</a>.)</p>
+
+<p>In this case we don’t need to write an extension. It’s already provided for us in the Linq namespace, which includes the <a href="https://msdn.microsoft.com/en-us/library/bb460136(v=vs.100).aspx"><code class="highlighter-rouge">Intersect</code></a> extension.</p>
+
+<p>That enables us to use the <code class="highlighter-rouge">Intersect</code> method on <code class="highlighter-rouge">List&lt;T&gt;</code> or any other class that implements <code class="highlighter-rouge">IEnumerable&lt;T&gt;</code>.</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">var</span> <span class="n">list</span> <span class="p">=</span> <span class="k">new</span> <span class="n">List</span><span class="p">&lt;</span><span class="kt">string</span><span class="p">&gt;(</span><span class="k">new</span><span class="p">[]</span> <span class="p">{</span><span class="s">"A"</span><span class="p">,</span> <span class="s">"B"</span><span class="p">,</span> <span class="s">"C"</span><span class="p">,</span> <span class="s">"D"</span><span class="p">});</span>
+<span class="kt">var</span> <span class="n">array</span> <span class="p">=</span> <span class="k">new</span><span class="p">[]</span> <span class="p">{</span><span class="s">"B"</span><span class="p">,</span> <span class="s">"C"</span><span class="p">,</span> <span class="s">"G"</span><span class="p">};</span>
+<span class="kt">var</span> <span class="n">intersection</span> <span class="p">=</span> <span class="n">list</span><span class="p">.</span><span class="nf">Intersect</span><span class="p">(</span><span class="n">array</span><span class="p">);</span> <span class="c1">// B, C</span>
+</code></pre></div></div>
+
+<p>This is not to say that we should not add methods to existing classes. But we should ask whether it really makes sense to do so if we can just provide an extension method. Are we considering adding the method because we need it in just one scenario? If so, the existing class is  likely fine just as it is. Both the Open/Closed Principle and the Single Responsibility Principle indicate that we shouldn’t necessarily modify a class just because we need to do something different with it.</p>
+
+<h2 id="context-specific-methods">Context-specific methods</h2>
+
+<p>A class might only need a method in certain contexts. For example, suppose you have a class that represents a triangle, and you want a method to draw it on a Windows form. You might use the same <code class="highlighter-rouge">Triangle</code> class in multiple applications - some are Windows forms, some are websites, etc. It wouldn’t make sense for the <code class="highlighter-rouge">Triangle</code> class itself to have a method like <code class="highlighter-rouge">Draw(Form form, Point location)</code>.<br />
+But we could create that method as an extension in our Windows Form application or in a library used by that application. That way if we’re using the <code class="highlighter-rouge">Triangle</code> class in that context we’ll have access to that method, but in a different context that method won’t exist.</p>
+
+<h2 id="caveatsother-thoughts">Caveats/other thoughts</h2>
+
+<h3 id="dont-use-them-for-evil">Don’t use them for evil</h3>
+
+<p>With great extensibility comes great responsibility. When we create extensions we’re really creating static methods in static helper classes. That can be an anti-pattern, allowing us to put functionality where it doesn’t belong. Static classes can also make testing more difficult (or even impossible.)</p>
+
+<p>For those reasons extension classes should be small and stateless. They’re not a place to put any sort of application logic. This, for example, is bad:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">public</span> <span class="k">static</span> <span class="k">class</span> <span class="nc">UserExtensions</span>
+<span class="p">{</span>
+    <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> <span class="nf">SaveToDatabase</span><span class="p">(</span><span class="k">this</span> <span class="n">User</span> <span class="n">user</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="kt">var</span> <span class="n">connectionString</span> <span class="p">=</span> <span class="n">ConfigurationManager</span><span class="p">.</span><span class="n">ConnectionStrings</span><span class="p">[</span><span class="s">"db"</span><span class="p">].</span><span class="n">ConnectionString</span><span class="p">;</span>
+        <span class="c1">// Open a database connection and save the User to the database</span>
+    <span class="p">}</span>
+    
+    <span class="k">public</span> <span class="k">static</span> <span class="k">void</span> <span class="nf">ValidateNewUser</span><span class="p">(</span><span class="k">this</span> <span class="n">User</span> <span class="n">user</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="c1">// Not a good place to put the rules for validating a user.</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>If we do that then any class that calls <code class="highlighter-rouge">user.SaveToDatabase()</code> will be difficult to test. The unit test will depend on the connection string being in app.config, availability of the database, etc. If a class needs to save a <code class="highlighter-rouge">User</code> then we’d rather inject an interface like <code class="highlighter-rouge">IUserRepository</code> into that class. (See <a href="http://scotthannen.org/blog/2016/04/13/wcf-dependency-injection-in-5-minutes.html">Dependency Injection</a>. That’s a different subject.)</p>
+
+<h3 id="unit-test">Unit test</h3>
+
+<p>Because extension classes are really “helper” classes it follows that we’ll try to write helpful methods that other developers can reuse. They should usually be small enough to unit test. (If they’re not, maybe they shouldn’t be static extension methods.) That way we can feel comfortable that other developers can rely on our helpful extension methods. For example:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">[TestMethod]</span>
+<span class="k">public</span> <span class="k">void</span> <span class="nf">IsInRange_ReturnsCorrectResult</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="n">Assert</span><span class="p">.</span><span class="nf">IsTrue</span><span class="p">(</span><span class="m">1.</span><span class="nf">IsInRange</span><span class="p">(</span><span class="m">1</span><span class="p">,</span><span class="m">100</span><span class="p">));</span>
+    <span class="n">Assert</span><span class="p">.</span><span class="nf">IsTrue</span><span class="p">(</span><span class="m">100.</span><span class="nf">IsInRange</span><span class="p">(</span><span class="m">1</span><span class="p">,</span> <span class="m">100</span><span class="p">));</span>
+    <span class="n">Assert</span><span class="p">.</span><span class="nf">IsTrue</span><span class="p">(</span><span class="m">5.</span><span class="nf">IsInRange</span><span class="p">(</span><span class="m">5</span><span class="p">,</span><span class="m">5</span><span class="p">));</span>
+    <span class="n">Assert</span><span class="p">.</span><span class="nf">IsFalse</span><span class="p">(</span><span class="m">0.</span><span class="nf">IsInRange</span><span class="p">(</span><span class="m">1</span><span class="p">,</span> <span class="m">100</span><span class="p">));</span>
+    <span class="n">Assert</span><span class="p">.</span><span class="nf">IsFalse</span><span class="p">(</span><span class="m">101.</span><span class="nf">IsInRange</span><span class="p">(</span><span class="m">1</span><span class="p">,</span> <span class="m">100</span><span class="p">));</span>
+<span class="p">}</span>
+
+<span class="na">[TestMethod]</span>
+<span class="na">[ExpectedException(typeof (ArgumentException))]</span>
+<span class="k">public</span> <span class="k">void</span> <span class="nf">IsInRange_ThrowsExceptionForInvalidRange</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="m">1.</span><span class="nf">IsInRange</span><span class="p">(</span><span class="m">100</span><span class="p">,</span> <span class="m">1</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<h2 id="summary">Summary</h2>
+
+<p>Extensions make sense when we want reusable code that applies to a particular class but can’t or shouldn’t be a part of that class.</p>
+
+<h4 id="unrelated">Unrelated</h4>
+
+<p>This has no direct relation to writing extension classes. But if we were going to write an extension that checks for values in a range, why write it specifically for <code class="highlighter-rouge">int</code>? This does the exact same thing, but it works for <code class="highlighter-rouge">int</code>, <code class="highlighter-rouge">decimal</code>, <code class="highlighter-rouge">DateTime</code>, and anything else that implements <code class="highlighter-rouge">IComparable&lt;T&gt;</code>. The unit tests above still pass, and for safety I might add a few more checks.</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">public</span> <span class="k">static</span> <span class="kt">bool</span> <span class="n">IsInRange</span><span class="p">&lt;</span><span class="n">TComparable</span><span class="p">&gt;(</span><span class="k">this</span> <span class="n">TComparable</span> <span class="n">input</span><span class="p">,</span> <span class="n">TComparable</span> <span class="n">minimum</span><span class="p">,</span> <span class="n">TComparable</span> <span class="n">maximum</span><span class="p">)</span> 
+    <span class="k">where</span> <span class="n">TComparable</span> <span class="p">:</span> <span class="n">IComparable</span><span class="p">&lt;</span><span class="n">TComparable</span><span class="p">&gt;</span>
+<span class="p">{</span>
+    <span class="k">if</span><span class="p">(</span><span class="n">minimum</span><span class="p">.</span><span class="nf">CompareTo</span><span class="p">(</span><span class="n">maximum</span><span class="p">)</span> <span class="p">&gt;</span> <span class="m">0</span> <span class="p">)</span> <span class="k">throw</span> <span class="k">new</span> <span class="nf">ArgumentException</span><span class="p">(</span><span class="s">"Minimum cannot be greater than maximum."</span><span class="p">);</span>
+    <span class="k">return</span> <span class="n">input</span><span class="p">.</span><span class="nf">CompareTo</span><span class="p">(</span><span class="n">minimum</span><span class="p">)</span> <span class="p">&gt;</span> <span class="p">-</span><span class="m">1</span> <span class="p">&amp;&amp;</span> <span class="n">input</span><span class="p">.</span><span class="nf">CompareTo</span><span class="p">(</span><span class="n">maximum</span><span class="p">)</span> <span class="p">&lt;</span> <span class="m">1</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>

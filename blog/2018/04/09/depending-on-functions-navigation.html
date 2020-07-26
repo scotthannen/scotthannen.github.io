@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>Depending on Functions Instead of Interfaces - The Navigation Problem</title>
+    <meta name="description" content="A reader pointed out a significant unaddressed gap in a previous post, Depending on Functions Instead of Interfaces - Why and How. The code as shown in the p...">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2018/04/09/depending-on-functions-navigation.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Depending on Functions Instead of Interfaces - The Navigation Problem</h1>
+    <p class="post-meta"><time datetime="2018-04-09T07:20:58-04:00" itemprop="datePublished">Apr 9, 2018</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>A reader pointed out a significant unaddressed gap in a previous post, <a href="/blog/2018/03/18/depending-on-functions-instead-of-interfaces.html">Depending on Functions Instead of Interfaces - Why and How</a>. 
+The code as shown in the post would be more difficult to navigate than code using interfaces. If a class depends on an interface you can navigate to implementations in Visual Studio
+(assuming that they’re in the same solution) using CTRL-F12 or right-clicking on the interface and selecting “Go to implementation.”</p>
+
+<p>But suppose we have this class which depends on a delegate:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>public class ClassThatDependsOnMath
+{
+    private readonly DoMath _doMath; // &lt;-- The delegate
+
+    public ClassThatDependsOnMath(DoMath doMath)
+    {
+        _doMath = doMath;
+    }
+
+    public int Calculate(Single value1, Single value2)
+    {
+        return _doMath(value1, value2);
+    }
+}
+</code></pre></div></div>
+
+<p>and the implementation of the delegate is this method:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>public class Calculator 
+{
+    public Single AddNumbers(Single value1, Single value2)
+    {
+        return value1 + value2;
+    }
+}
+</code></pre></div></div>
+
+<p>If we’re looking at <code class="highlighter-rouge">ClassThatDependsOnMath</code>, we see that it depends on <code class="highlighter-rouge">DoMath</code>, and we want to navigate to implementations of <code class="highlighter-rouge">DoMath</code>, how do we do that? 
+We can get there, but the path is a little bit longer. We’d have to find uses of the delegate which will lead
+us to the code where it’s registered with the dependency injection container, and read that to see what the registered implementation is.</p>
+
+<p>This issue is somewhat mitigated by two factors:</p>
+
+<ul>
+  <li>Even though we can navigate to the implementation(s) of an interface, we may still need to visit the dependency injection
+code to determine <em>which</em> implementation is used by the class we’re looking at. However, many times there are just a few
+implementations and we already know which one we’re looking for, so the ability to navigate to the implementation from
+the interface is still a convenience.</li>
+  <li>Whether we depend on an interface or a delegate, we can’t navigate to its implementation if it’s not available in the
+source code of our application.</li>
+</ul>
+
+<p>So it’s not the end of the world, but there’s room for improvement. How can we make it better? By making our method that implements the delegate implement it <em>explicitly</em>. 
+It’s not that different from implementing an interface, except that it’s the method, not the class.</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>public class Calculator 
+{
+    public readonly DoMath AddNumbers = (Single value1, Single value2) =&gt; value1 + value2;
+}
+</code></pre></div></div>
+
+<p>Technically we could even omit the types from the function declaration since they’re already specified by the delegate. 
+I prefer to leave them in so that I can see the types when looking at the method.</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>public class Calculator 
+{
+    public readonly DoMath AddNumbers = (value1, value2) =&gt; value1 + value2;
+}
+</code></pre></div></div>
+
+<p>Now we can find usages of the delegate (Shift+F12) which will lead us to both its registrations with the DI container <em>and</em>
+its implementations. Resharper provides “Find Usages Advanced” (Ctrl+Shift+Alt+F12) which includes the option to find delegate targets.</p>
+
+<p>It’s different, and different is a concern because it means developers will see something that doesn’t adhere to a familiar convention. 
+How big that concern is depends on you and your team.</p>
+
+<p>If you read the previous post you’ll know that I haven’t bought stock in depending on delegates vs. interfaces. It simply has benefits in some cases, such as when you want to
+prevent the uncontrolled addition of methods to existing interfaces, the corresponding growth of their implementations, and codependent manner in which it enables classes consuming
+the interface to add responsibilities without explicitly adding dependencies. Growth of one leads to growth of the other. It’s not a problem with interfaces per se, just the enablement
+of seemingly small shortcuts that accumulate into large classes with tangled dependencies. I use the words <em>codependent</em> and <em>enable</em> together because it reminds me of 
+that sort of unhealthy relationship. The visible addition of dependencies to a class should help to prevent an accumulation of responsibilities in that class. But too often our interface says, “That’s okay, just hide your extra 
+responsibilities inside me. It’s okay to violate the Single Responsibility Principle. We’ll do it together.”</p>
+
+<p>A delegate puts its foot in the ground and says, “You can be as careless as you want, but I won’t help you hide what you’re doing.” Unless, that is, we start adding more arguments to the
+delegate’s signature or adding properties to its inputs or output just because one implementation needs them. That leads to another antipattern, the Inconsistently Populated Object.
+More on that later.</p>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>

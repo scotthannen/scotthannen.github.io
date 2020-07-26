@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>Dependency Injection in WCF Services in Five Minutes</title>
+    <meta name="description" content="Dependency injection is neither too complex nor effortlessly intuitive. The benefits and problems it solves may not become apparent until you’ve used it or s...">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2016/04/13/wcf-dependency-injection-in-5-minutes.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Dependency Injection in WCF Services in Five Minutes</h1>
+    <p class="post-meta"><time datetime="2016-04-13T07:20:58-04:00" itemprop="datePublished">Apr 13, 2016</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>Dependency injection is neither too complex nor effortlessly intuitive. The benefits and problems it solves may not become apparent until you’ve used it or see it in action. I often recommend it when answering questions on <a href="http://stackoverflow.com/">stackoverflow</a>, not because it’s the direct answer to the question, but because it enables a solution or changes the way we design classes and applications so that some problems aren’t problems any more.</p>
+
+<p>But if you’ve only heard of it and are trying to learn more, many explanations are bit frustrating, using (IMHO) a bit too much jargon and too many unhelpful diagrams. (That “jargon” is often useful vocabulary but most of us don’t have the luxury of learning in a linear manner that proceeds from terminology to advanced concepts.)</p>
+
+<p>Therefore in this post I’m only going to show <em>how</em> to use it with minimal explanation of <em>why</em>. Here’s a good <em><a href="http://www.jamesshore.com/Blog/Dependency-Injection-Demystified.html">why</a></em> article. This example will use <a href="https://github.com/castleproject/Windsor/blob/master/docs/README.md">Castle Windsor</a> to enable dependency injection, but that’s just one option.</p>
+
+<p>It’s going to look a little like extra code that doesn’t do anything. I’m going to ask you to trust that it’s worth it many times over. (If you decide that it isn’t then you lose little or you’ve already stopped reading.) I’m going to keep this code bare-bones and minimal.</p>
+
+<h3 id="1-create-a-wcf-service-application-and-add-castle-windsor">1. Create a WCF Service Application and Add Castle Windsor</h3>
+
+<p>Create a new WCF service application or open an existing one.<br />
+Add the <a href="https://www.nuget.org/packages/Castle.WcfIntegrationFacility/">Castle Windsor WCF integration facility nuget package</a> to the project.</p>
+
+<h3 id="2-add-some-boilerplate-code">2. Add Some Boilerplate Code</h3>
+
+<p>Do this a few times and you’ll never forget it. (Plus I use <a href="https://www.jetbrains.com/resharper/">ReSharper</a> which helps with <code class="highlighter-rouge">using</code> namespaces.)</p>
+
+<p>Add a class named <code class="highlighter-rouge">WindsorInstaller</code> to the project:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">using</span> <span class="nn">Castle.MicroKernel.Registration</span><span class="p">;</span>
+    <span class="k">using</span> <span class="nn">Castle.MicroKernel.SubSystems.Configuration</span><span class="p">;</span>
+    <span class="k">using</span> <span class="nn">Castle.Windsor</span><span class="p">;</span>
+
+    <span class="k">namespace</span> <span class="nn">YourNamespace</span>
+    <span class="p">{</span>
+        <span class="k">public</span> <span class="k">class</span> <span class="nc">WindsorInstaller</span> <span class="p">:</span> <span class="n">IWindsorInstaller</span>
+        <span class="p">{</span>
+            <span class="k">public</span> <span class="k">void</span> <span class="nf">Install</span><span class="p">(</span><span class="n">IWindsorContainer</span> <span class="n">container</span><span class="p">,</span> <span class="n">IConfigurationStore</span> <span class="n">store</span><span class="p">)</span>
+            <span class="p">{</span>
+                <span class="c1">//Nothing here yet! We'll come back to it.</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>If there’s not already a <code class="highlighter-rouge">Global.asax</code>, add one. (Add -&gt; New Item -&gt; Web -&gt; Global Application Class.)
+In <code class="highlighter-rouge">Global.asax.cs</code> add the following:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">Global</span> <span class="p">:</span> <span class="n">System</span><span class="p">.</span><span class="n">Web</span><span class="p">.</span><span class="n">HttpApplication</span>
+    <span class="p">{</span>
+        <span class="k">static</span> <span class="n">IWindsorContainer</span> <span class="n">container</span><span class="p">;</span>
+        
+        <span class="k">protected</span> <span class="k">void</span> <span class="nf">Application_Start</span><span class="p">(</span><span class="n">Object</span> <span class="n">sender</span><span class="p">,</span> <span class="n">EventArgs</span> <span class="n">e</span><span class="p">)</span> 
+        <span class="p">{</span>
+            <span class="n">container</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">WindsorContainer</span><span class="p">();</span>
+            <span class="n">container</span><span class="p">.</span><span class="n">AddFacility</span><span class="p">&lt;</span><span class="n">WcfFacility</span><span class="p">&gt;();</span>
+            <span class="n">container</span><span class="p">.</span><span class="nf">Install</span><span class="p">(</span><span class="k">new</span> <span class="nf">WindsorInstaller</span><span class="p">());</span> <span class="c1">//The class you just created.</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+<p><strong>What We’ve Done So Far</strong></p>
+
+<ul>
+  <li>We’ve created a single, global instance of <code class="highlighter-rouge">WindsorContainer</code>. But aren’t global variables bad? It’s okay - except for the <code class="highlighter-rouge">WindsorInstaller</code> class, nothing is every going to use that <code class="highlighter-rouge">WindsorContainer</code>. The point is that there’s only one and it lives as long as the application does.</li>
+  <li>We’ve added the <code class="highlighter-rouge">WcfFacility</code>. That just means we’ve told the <code class="highlighter-rouge">WindsorContainer</code> that we’ll need it to help with WCF services.</li>
+  <li>We’ve told the <code class="highlighter-rouge">WindsorContainer</code> to use the new class we created, <code class="highlighter-rouge">WindsorInstaller</code>, to get any additional configuration instructions that it’s going to need. (We haven’t put anything there. We’ll come back to it.)</li>
+</ul>
+
+<h3 id="3-create-a-wcf-service-and-add-some-code-that-does-stuff">3. Create a WCF Service and Add Some Code That Does Stuff</h3>
+
+<p>Add a new WCF service called <code class="highlighter-rouge">GreetingService</code> to the project. Its job is to return a greeting. (It’s useless, but a more detailed example takes focus from the main point.)
+Put this in <code class="highlighter-rouge">IGreetingService</code>:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="p">[</span><span class="n">ServiceContract</span><span class="p">]</span>
+    <span class="k">public</span> <span class="k">interface</span> <span class="nc">IGreetingService</span>
+    <span class="p">{</span>
+        <span class="p">[</span><span class="n">OperationContract</span><span class="p">]</span>
+        <span class="kt">string</span> <span class="nf">GetGreeting</span><span class="p">();</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+<p>Put this in <code class="highlighter-rouge">GreetingService.svc.cs</code> (for convenience you can paste it all into one file):</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">GreetingService</span> <span class="p">:</span> <span class="n">IGreetingService</span>
+    <span class="p">{</span>
+        <span class="k">private</span> <span class="k">readonly</span> <span class="n">IGreetingProvider</span> <span class="n">_greetingProvider</span><span class="p">;</span>
+
+        <span class="k">public</span> <span class="nf">GreetingService</span><span class="p">(</span><span class="n">IGreetingProvider</span> <span class="n">greetingProvider</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">_greetingProvider</span> <span class="p">=</span> <span class="n">greetingProvider</span><span class="p">;</span>
+        <span class="p">}</span>
+
+        <span class="k">public</span> <span class="kt">string</span> <span class="nf">GetGreeting</span><span class="p">()</span>
+        <span class="p">{</span>
+            <span class="k">return</span> <span class="n">_greetingProvider</span><span class="p">.</span><span class="nf">GetGreeting</span><span class="p">();</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="k">public</span> <span class="k">interface</span> <span class="nc">IGreetingProvider</span>
+    <span class="p">{</span>
+        <span class="kt">string</span> <span class="nf">GetGreeting</span><span class="p">();</span>
+    <span class="p">}</span>
+
+    <span class="k">public</span> <span class="k">interface</span> <span class="nc">IComputerNameProvider</span>
+    <span class="p">{</span>
+        <span class="kt">string</span> <span class="nf">GetComputerName</span><span class="p">();</span>
+    <span class="p">}</span>
+
+    <span class="k">public</span> <span class="k">class</span> <span class="nc">ComputerNameGreetingProvider</span> <span class="p">:</span> <span class="n">IGreetingProvider</span>
+    <span class="p">{</span>
+        <span class="k">private</span> <span class="k">readonly</span> <span class="n">IComputerNameProvider</span> <span class="n">_computerNameProvider</span><span class="p">;</span>
+
+        <span class="k">public</span> <span class="nf">ComputerNameGreetingProvider</span><span class="p">(</span><span class="n">IComputerNameProvider</span> <span class="n">computerNameProvider</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">_computerNameProvider</span> <span class="p">=</span> <span class="n">computerNameProvider</span><span class="p">;</span>
+        <span class="p">}</span>
+
+        <span class="k">public</span> <span class="kt">string</span> <span class="nf">GetGreeting</span><span class="p">()</span>
+        <span class="p">{</span>
+            <span class="k">return</span> <span class="kt">string</span><span class="p">.</span><span class="nf">Concat</span><span class="p">(</span><span class="s">"Hello from "</span><span class="p">,</span> <span class="n">_computerNameProvider</span><span class="p">.</span><span class="nf">GetComputerName</span><span class="p">());</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="k">public</span> <span class="k">class</span> <span class="nc">EnvironmentComputerNameProvider</span> <span class="p">:</span> <span class="n">IComputerNameProvider</span>
+    <span class="p">{</span>
+        <span class="k">public</span> <span class="kt">string</span> <span class="nf">GetComputerName</span><span class="p">()</span>
+        <span class="p">{</span>
+            <span class="k">return</span> <span class="n">System</span><span class="p">.</span><span class="n">Environment</span><span class="p">.</span><span class="n">MachineName</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p><strong>What Was All That?</strong></p>
+
+<p>The purpose of this is to create classes with dependencies.</p>
+
+<ul>
+  <li><code class="highlighter-rouge">GreetingService</code> depends on <code class="highlighter-rouge">IGreetingProvider</code>.</li>
+  <li><code class="highlighter-rouge">IGreetingProvider</code> is implemented by <code class="highlighter-rouge">ComputerNameGreetingProvider</code> which depends on <code class="highlighter-rouge">IComputerNameProvider</code>.</li>
+</ul>
+
+<h3 id="4-configure-windsor-to-make-all-this-work">4. Configure Windsor to Make All This Work</h3>
+
+<p>I’d call this the fun part but that would imply that the rest wasn’t fun.</p>
+
+<p>How are these classes going to get created? How are the right arguments going to get passed into the constructors? WCF service classes don’t even <em>have</em> constructors, do they? How is that constructor ever going to get called?</p>
+
+<p>This is where dependency injection comes in. We’re going to <em>inject</em> the <em>dependencies</em> into each class. The dependencies are specified in the constructors, so this is also termed <em>constructor injection</em>.</p>
+
+<p>First, we need to specify that when an instance of <code class="highlighter-rouge">GreetingService</code> is created to handle a request, Windsor will be responsible for creating it. To do that, edit the markup of the service and add this:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Factory="Castle.Facilities.WcfIntegration.DefaultServiceHostFactory, Castle.Facilities.WcfIntegration"
+</code></pre></div></div>
+
+<p>So the markup will look like this:</p>
+
+<div class="language-html highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="nt">&lt;</span><span class="err">%@</span> <span class="na">ServiceHost</span> <span class="na">Language=</span><span class="s">"C#"</span><span class="na">Debug=</span><span class="s">"true"</span>
+        <span class="na">Service=</span><span class="s">"WindsorWalkthrough.GreetingService"</span>
+        <span class="na">CodeBehind=</span><span class="s">"GreetingService.svc.cs"</span>
+        <span class="na">Factory=</span><span class="s">"Castle.Facilities.WcfIntegration.DefaultServiceHostFactory, Castle.Facilities.WcfIntegration"</span>
+    <span class="err">%</span><span class="nt">&gt;</span>
+</code></pre></div></div>
+
+<p>Then, let’s go back to the <code class="highlighter-rouge">WindsorInstaller</code> class and fill in the details that the <code class="highlighter-rouge">WindsorContainer</code> will need to do its work. We also call this <em>registering dependencies.</em></p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">WindsorInstaller</span> <span class="p">:</span> <span class="n">IWindsorInstaller</span>
+    <span class="p">{</span>
+        <span class="k">public</span> <span class="k">void</span> <span class="nf">Install</span><span class="p">(</span><span class="n">IWindsorContainer</span> <span class="n">container</span><span class="p">,</span> <span class="n">IConfigurationStore</span> <span class="n">store</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">container</span><span class="p">.</span><span class="nf">Register</span><span class="p">(</span>
+                <span class="n">Component</span><span class="p">.</span><span class="n">For</span><span class="p">&lt;</span><span class="n">IGreetingService</span><span class="p">,</span> <span class="n">GreetingService</span><span class="p">&gt;(),</span>
+                <span class="n">Component</span><span class="p">.</span><span class="n">For</span><span class="p">&lt;</span><span class="n">IGreetingProvider</span><span class="p">,</span> <span class="n">ComputerNameGreetingProvider</span><span class="p">&gt;(),</span>
+                <span class="n">Component</span><span class="p">.</span><span class="n">For</span><span class="p">&lt;</span><span class="n">IComputerNameProvider</span><span class="p">,</span> <span class="n">EnvironmentComputerNameProvider</span><span class="p">&gt;());</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+<p>What we’re telling Windsor what arguments to pass to the constructor of each class when it creates them.</p>
+
+<ul>
+  <li>When a constructor requires an <code class="highlighter-rouge">IGreetingService</code>, create a <code class="highlighter-rouge">GreetingService</code>.</li>
+  <li>When a constructor requires an <code class="highlighter-rouge">IGreetingProvider</code>, create a <code class="highlighter-rouge">ComputerNameGreetingProvider</code>.</li>
+  <li>For <code class="highlighter-rouge">IComputerNameProvider</code>, create a <code class="highlighter-rouge">EnvironmentComputerNameProvider&gt;</code>.</li>
+</ul>
+
+<p>Think of it as each class just saying what it needs (what it depends on) and Windsor’s job is to create those classes with whatever dependencies they need.</p>
+
+<p>A technical term for this configuration that occurs when the application starts is <em><a href="http://blog.ploeh.dk/2011/07/28/CompositionRoot/">composition root</a></em>. We’re specifying all at once how all of these classes and their dependencies are <em>composed</em> instead of having it scattered through individual classes each creating other classes.</p>
+
+<p>Now you can test the service, invoke the <code class="highlighter-rouge">GetGreeting()</code> method, and observe that it returns<br />
+<code class="highlighter-rouge">Hello from [your computer name]</code>.</p>
+
+<h3 id="what-did-all-of-this-accomplish">What Did All of This Accomplish?</h3>
+
+<ul>
+  <li>We were able to write each class so that it depends on abstractions (interfaces.) That’s <a href="http://martinfowler.com/articles/dipInTheWild.html">Dependency Inversion</a>, the D in <a href="https://scotch.io/bar-talk/s-o-l-i-d-the-first-five-principles-of-object-oriented-design">SOLID</a>. Each class isn’t responsible for creating other classes and knowing what they depend on. They know as little as possible, just what is defined in the interface.</li>
+  <li>Because the classes depend on interfaces, it’s possible to replace one implementation of an interface with another without modifying the class that depends on it.</li>
+  <li>Because the classes depend on interfaces, they’re easier to unit test. We can create each class with “mocked” (dummy) versions of the interfaces it depends on.</li>
+  <li>When a class’s dependencies are all specified in its constructor, it’s much easier to look at a class and see what it depends on. It’s also easier to tell if a class has too many dependencies which means it’s doing too many things and may need to be refactored.</li>
+</ul>
+
+<p>We can write classes that way without Castle Winsdor or dependency injection, but how would we create them? How would we create a class that depends on a few other classes that each depend on more classes, and so on? It would be too hard, so we might just end up creating great big classes that do too many things. Now, as a side effect of using dependency injection, it’s easier to write smaller classes that each have a <a href="http://www.oodesign.com/single-responsibility-principle.html">Single Responsibility</a> (the S in <a href="https://scotch.io/bar-talk/s-o-l-i-d-the-first-five-principles-of-object-oriented-design">SOLID</a>.)</p>
+
+<h3 id="final-thoughts">Final Thoughts</h3>
+<ul>
+  <li>Ignore terminology that confuses. Dependency injection isn’t dependency inversion or inversion of control, but DI containers are also called <em>inversion of control (IoC) containers</em> because DI enables IoC. (I typed that and my own brain went numb.) Why is it even called a <em>container</em>?</li>
+  <li>Dependency injection does not require a container like Windsor, Autofac, Simple Injector, Unity, etc. But in common use dependency injection is synonymous with use of one of these containers because that’s how dependency injection is most often implemented.</li>
+  <li>Some developers feel that DI is unnecessary for smaller projects. They may be right, but I recommend using it anyway, especially when learning it. It’s good practice and it encourages good habits.</li>
+  <li>DI doesn’t just inject classes that implement interfaces. Maybe your class depends on a SQL connection string. You can inject values, including from <code class="highlighter-rouge">app.config</code>/<code class="highlighter-rouge">web.config</code>.</li>
+  <li>By default Windsor and other containers create objects as singletons unless you tell them not to. Sometimes that’s not desirable. They all have ways to <a href="https://github.com/castleproject/Windsor/blob/master/docs/lifestyles.md">control that behavior</a>.</li>
+</ul>
+
+<p>I’ll add more later on how to register some other types of dependencies and more details.</p>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>

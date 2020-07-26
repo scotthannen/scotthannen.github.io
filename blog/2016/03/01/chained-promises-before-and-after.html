@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>JavaScript - Chained Promises Before &amp; After Example</title>
+    <meta name="description" content="This is an experiment I worked through to understand and test chaining and exception handling with promises. This is relatively new for me. That means the ex...">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2016/03/01/chained-promises-before-and-after.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">JavaScript - Chained Promises Before & After Example</h1>
+    <p class="post-meta"><time datetime="2016-03-01T06:20:58-05:00" itemprop="datePublished">Mar 1, 2016</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>This is an experiment I worked through to understand and test chaining and exception handling with promises. This is relatively new for me. That means the example may be less than 100% perfect, but perhaps a little more accessible if this is new for you too.</p>
+
+<p>The scenario is a JavaScript function to bake a cake. The ingredients – flour, eggs, sugar, and frosting – are all retrieved by Ajax calls. We request the ingredients, then mix the batter, bake it, and add the frosting. When it’s done we call <code class="highlighter-rouge">deliverTheCake()</code>. If it fails we call <code class="highlighter-rouge">makeExcuse()</code>.</p>
+
+<p>Assume that any step in the process can fail, so each one needs exception handling to ensure that the error handler executes.</p>
+
+<h2 id="bad-example">Bad Example</h2>
+
+<p>First is the bad example. The callback for each request starts the next request. That’s how a lot of JavaScript ends up, either by design or by gradual change.</p>
+
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="kd">function</span> <span class="nx">mix</span><span class="p">(</span><span class="nx">flour</span><span class="p">,</span> <span class="nx">eggs</span><span class="p">,</span> <span class="nx">sugar</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="nx">flour</span> <span class="o">+</span> <span class="s2">","</span> <span class="o">+</span> <span class="nx">eggs</span> <span class="o">+</span> <span class="s2">","</span> <span class="o">+</span> <span class="nx">sugar</span> <span class="o">+</span> <span class="s2">"_mixed"</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="kd">function</span> <span class="nx">bake</span><span class="p">(</span><span class="nx">batter</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="nx">batter</span> <span class="o">+</span> <span class="s2">"_baked"</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="kd">function</span> <span class="nx">frost</span><span class="p">(</span><span class="nx">cake</span><span class="p">,</span> <span class="nx">frosting</span><span class="p">)</span> <span class="p">{</span>
+        <span class="k">return</span> <span class="nx">cake</span> <span class="o">+</span> <span class="s2">"_frosted_with_"</span> <span class="o">+</span> <span class="nx">frosting</span><span class="p">;</span>
+    <span class="p">}</span>
+
+    <span class="kd">function</span> <span class="nx">deliverTheCake</span><span class="p">(</span><span class="nx">cake</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">"The cake is delivered: "</span> <span class="o">+</span> <span class="nx">cake</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="kd">function</span> <span class="nx">makeExcuse</span><span class="p">(</span><span class="nx">error</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s2">"Sorry, can't finish the cake because: "</span> <span class="o">+</span> <span class="nx">error</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="kd">function</span> <span class="nx">getCake</span><span class="p">(</span><span class="nx">success</span><span class="p">,</span> <span class="nx">error</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nx">$</span><span class="p">.</span><span class="nx">ajax</span><span class="p">(</span><span class="s2">"/api/getFlour"</span><span class="p">,</span>
+            <span class="p">{</span>
+                <span class="na">success</span><span class="p">:</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">flour</span><span class="p">)</span> <span class="p">{</span>
+                    <span class="nx">$</span><span class="p">.</span><span class="nx">ajax</span><span class="p">(</span><span class="s2">"/api/getEggs"</span><span class="p">,</span> <span class="p">{</span>
+                        <span class="na">success</span><span class="p">:</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">eggs</span><span class="p">)</span> <span class="p">{</span>
+                            <span class="nx">$</span><span class="p">.</span><span class="nx">ajax</span><span class="p">(</span><span class="s2">"/api/getSugar"</span><span class="p">,</span> <span class="p">{</span>
+                                <span class="na">success</span><span class="p">:</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">sugar</span><span class="p">)</span> <span class="p">{</span>
+                                    <span class="nx">$</span><span class="p">.</span><span class="nx">ajax</span><span class="p">(</span><span class="s2">"/api/getFrosting"</span><span class="p">,</span> <span class="p">{</span>
+                                        <span class="na">success</span><span class="p">:</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">frosting</span><span class="p">)</span> <span class="p">{</span>
+                                            <span class="k">try</span> <span class="p">{</span>
+                                                <span class="kd">var</span> <span class="nx">batter</span> <span class="o">=</span> <span class="nx">mix</span><span class="p">(</span><span class="nx">flour</span><span class="p">,</span> <span class="nx">eggs</span><span class="p">,</span> <span class="nx">sugar</span><span class="p">);</span>
+                                                <span class="kd">var</span> <span class="nx">unfrostedCake</span> <span class="o">=</span> <span class="nx">bake</span><span class="p">(</span><span class="nx">batter</span><span class="p">);</span>
+                                                <span class="kd">var</span> <span class="nx">finished</span> <span class="o">=</span> <span class="nx">frost</span><span class="p">(</span><span class="nx">unfrostedCake</span><span class="p">,</span> <span class="nx">frosting</span><span class="p">);</span>
+                                                <span class="nx">success</span><span class="p">(</span><span class="nx">finished</span><span class="p">);</span>
+                                            <span class="p">}</span>
+                                            <span class="k">catch</span> <span class="p">(</span><span class="nx">e</span><span class="p">)</span> <span class="p">{</span>
+                                                <span class="nx">error</span><span class="p">(</span><span class="nx">e</span><span class="p">);</span>
+                                            <span class="p">}</span>
+                                        <span class="p">},</span>
+                                        <span class="na">error</span><span class="p">:</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">jqXHR</span><span class="p">,</span> <span class="nx">status</span><span class="p">,</span> <span class="nx">errorThrown</span><span class="p">)</span> <span class="p">{</span>
+                                            <span class="nx">error</span><span class="p">(</span><span class="nx">errorThrown</span><span class="p">);</span>
+                                        <span class="p">}</span>
+                                    <span class="p">});</span>
+                                <span class="p">},</span>
+                                <span class="na">error</span><span class="p">:</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">jqXHR</span><span class="p">,</span> <span class="nx">status</span><span class="p">,</span> <span class="nx">errorThrown</span><span class="p">)</span> <span class="p">{</span>
+                                    <span class="nx">error</span><span class="p">(</span><span class="nx">errorThrown</span><span class="p">);</span>
+                                <span class="p">}</span>
+                            <span class="p">});</span>
+                        <span class="p">},</span>
+                        <span class="na">error</span><span class="p">:</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">jqXHR</span><span class="p">,</span> <span class="nx">status</span><span class="p">,</span> <span class="nx">errorThrown</span><span class="p">)</span> <span class="p">{</span>
+                            <span class="nx">error</span><span class="p">(</span><span class="nx">errorThrown</span><span class="p">);</span>
+                        <span class="p">}</span>
+                    <span class="p">});</span>
+                <span class="p">},</span>
+                <span class="na">error</span><span class="p">:</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">jqXHR</span><span class="p">,</span> <span class="nx">status</span><span class="p">,</span> <span class="nx">errorThrown</span><span class="p">)</span> <span class="p">{</span>
+                    <span class="nx">error</span><span class="p">(</span><span class="nx">errorThrown</span><span class="p">);</span>
+                <span class="p">}</span>
+            <span class="p">});</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>The usage would be</p>
+
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="nx">getCake</span><span class="p">(</span><span class="nx">deliverTheCake</span><span class="p">,</span> <span class="nx">makeExcuse</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>What’s wrong with this?</p>
+
+<ul>
+  <li>Even though the individual steps are executed asynchronously, they’re still executed sequentially. We request the flour, wait for it, request the eggs, wait for them, etc. It would be much faster if we requested them all concurrently.</li>
+  <li>The code becomes a “pyramid of doom” – the sideways triangle of indentation. We could change all of the callbacks to named functions where each calls the next but that’s still hard to read, follow, and modify.</li>
+</ul>
+
+<h2 id="better-example">Better Example</h2>
+
+<p>I won’t say “good” example because there’s undoubtedly lots of room for improvement. But this code does the exact same only better and with fewer lines using chained promises.</p>
+
+<p>First, just one more function to return a promise for an Ajax call:</p>
+
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="kd">function</span> <span class="nx">getAjaxPromise</span><span class="p">(</span><span class="nx">url</span><span class="p">)</span> <span class="p">{</span>
+        <span class="kd">var</span> <span class="nx">deferred</span> <span class="o">=</span> <span class="nx">Q</span><span class="p">.</span><span class="nx">defer</span><span class="p">();</span>
+            <span class="nx">$</span><span class="p">.</span><span class="nx">ajax</span><span class="p">(</span><span class="nx">url</span><span class="p">,{</span> <span class="na">success</span><span class="p">:</span> <span class="nx">deferred</span><span class="p">.</span><span class="nx">resolve</span><span class="p">,</span> <span class="na">error</span><span class="p">:</span> <span class="nx">deferred</span><span class="p">.</span><span class="nx">reject</span><span class="p">})</span>
+        <span class="k">return</span> <span class="nx">deferred</span><span class="p">.</span><span class="nx">promise</span><span class="p">;</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>And then this is what combines the Ajax calls and the mixing and the baking. The main point is that this <code class="highlighter-rouge">getCake()</code> function replaces the one above and does a better job. The library I’m using is <a href="https://github.com/kriskowal/q">q.js</a>.</p>
+
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="kd">function</span> <span class="nx">getCake</span><span class="p">()</span> <span class="p">{</span>
+        <span class="kd">var</span> <span class="nx">deferred</span> <span class="o">=</span> <span class="nx">Q</span><span class="p">.</span><span class="nx">defer</span><span class="p">();</span>
+        <span class="kd">var</span> <span class="nx">getFrosting</span> <span class="o">=</span> <span class="nx">getAjaxPromise</span><span class="p">(</span><span class="s2">"/api/getFrosting"</span><span class="p">);</span>
+        <span class="nx">Q</span><span class="p">.</span><span class="nx">all</span><span class="p">([</span><span class="nx">getAjaxPromise</span><span class="p">(</span><span class="s2">"/api/getFlour"</span><span class="p">),</span> <span class="nx">getAjaxPromise</span><span class="p">(</span><span class="s2">"/api/getEggs"</span><span class="p">),</span> <span class="nx">getAjaxPromise</span><span class="p">(</span><span class="s2">"/api/getSugar"</span><span class="p">)])</span>
+            <span class="p">.</span><span class="nx">spread</span><span class="p">(</span><span class="nx">mix</span><span class="p">)</span>
+            <span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="nx">bake</span><span class="p">)</span>
+            <span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="kd">function</span> <span class="p">(</span><span class="nx">baked</span><span class="p">)</span> <span class="p">{</span>
+                <span class="nx">getFrosting</span><span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="kd">function</span> <span class="p">(</span><span class="nx">frosting</span><span class="p">)</span> <span class="p">{</span>
+                    <span class="kd">var</span> <span class="nx">finished</span> <span class="o">=</span> <span class="nx">frost</span><span class="p">(</span><span class="nx">baked</span><span class="p">,</span> <span class="nx">frosting</span><span class="p">);</span>
+                    <span class="nx">deferred</span><span class="p">.</span><span class="nx">resolve</span><span class="p">(</span><span class="nx">finished</span><span class="p">);</span>
+                <span class="p">});</span>
+            <span class="p">}).</span><span class="k">catch</span><span class="p">(</span><span class="nx">deferred</span><span class="p">.</span><span class="nx">reject</span><span class="p">);</span>
+        <span class="k">return</span> <span class="nx">deferred</span><span class="p">.</span><span class="nx">promise</span><span class="p">;</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>Following the pattern, the function doesn’t return a cake. It returns a promise for a cake. The usage would be</p>
+
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="nx">getCake</span><span class="p">().</span><span class="nx">then</span><span class="p">(</span><span class="nx">deliverTheCake</span><span class="p">).</span><span class="nx">fail</span><span class="p">(</span><span class="nx">makeExcuse</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>How is this better?</p>
+
+<ul>
+  <li>The asynchronous steps (getting the ingredients) are all executed concurrently. Regardless of what order they return in, the mixing and baking begin as soon as the flour, eggs, and sugar are available. It doesn’t care whether the frosting is available until it’s time for that step.</li>
+  <li>It’s easier to read (once you get used to the syntax.)</li>
+  <li>There are far fewer lines of code and the main function only has one line for exception handling.</li>
+</ul>
+
+<p>It’s also much easier to modify.</p>
+
+<ul>
+  <li>The <code class="highlighter-rouge">bake()</code> function can become asynchronous and return a promise and the <code class="highlighter-rouge">.then(bake)</code> line doesn’t change at all. In the previous example we’d have to add more callbacks and another level of indentation. That’s one more brick on our pyramid of doom.</li>
+  <li>What if we want to request frosting from two sources, use whichever comes first, and ignore the other? In the first example that would be so complicated we wouldn’t even contemplate it. In the second it’s easy. We could have multiple promises or an array of promises for frosting. This executes as soon as any one of them is fulfilled:</li>
+</ul>
+
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="nx">Q</span><span class="p">.</span><span class="nx">any</span><span class="p">(</span><span class="nx">arrayOfFrostingPromises</span><span class="p">).</span><span class="nx">then</span><span class="p">(</span><span class="kd">function</span><span class="p">(</span><span class="nx">frosting</span><span class="p">){</span><span class="err">…</span><span class="p">})</span>
+</code></pre></div></div>
+
+<ul>
+  <li>What if we want the whole thing to fail after 10 seconds if the cake isn’t delivered? Again, that’s difficult in the first example. In the second example we wouldn’t change the getCake() function at all. We’d change the function call to</li>
+</ul>
+
+<div class="language-js highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="nx">getCake</span><span class="p">().</span><span class="nx">timeout</span><span class="p">(</span><span class="mi">10000</span><span class="p">).</span><span class="nx">then</span><span class="p">(</span><span class="nx">deliverTheCake</span><span class="p">).</span><span class="nx">fail</span><span class="p">(</span><span class="nx">makeExcuse</span><span class="p">);</span>
+</code></pre></div></div>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>

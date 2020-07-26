@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>String Interpolation Functions vs. string.Format Constants</title>
+    <meta name="description" content="Have you ever done this, perhaps to construct a URL or something similar? I have:">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2018/12/29/string-interpolation-functions-vs-format-constants.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">String Interpolation Functions vs. string.Format Constants</h1>
+    <p class="post-meta"><time datetime="2018-12-29T04:20:58-05:00" itemprop="datePublished">Dec 29, 2018</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>Have you ever done this, perhaps to construct a URL or something similar? I have:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">const</span> <span class="kt">string</span> <span class="n">SomethingFormat</span> <span class="p">=</span> <span class="s">"I need to interpolate {0}, {1}, and {2}"</span><span class="p">;</span>
+
+<span class="kt">string</span> <span class="nf">GetInterpolatedString</span><span class="p">(</span><span class="kt">string</span> <span class="n">value1</span><span class="p">,</span> <span class="n">DateTime</span> <span class="n">value2</span><span class="p">,</span> <span class="kt">int</span> <span class="n">value3</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">return</span> <span class="kt">string</span><span class="p">.</span><span class="nf">Format</span><span class="p">(</span><span class="n">SomethingFormat</span><span class="p">,</span> <span class="n">value1</span><span class="p">,</span> <span class="n">value2</span><span class="p">,</span> <span class="n">value3</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>If we isolated the format string as a constant, that suggests that</p>
+<ul>
+  <li>we used it in multiple places and didn’t want to duplicate it</li>
+  <li>we isolated it for the sake of readability</li>
+</ul>
+
+<p>How do we use string constants this way when using string interpolation instead of <code class="highlighter-rouge">string.Format</code>?</p>
+
+<p>The short answer is that we don’t, because we can’t. And maybe it wasn’t the best approach anyway.</p>
+
+<p>This won’t compile because the value isn’t a constant:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">const</span> <span class="kt">string</span> <span class="n">SomethingFormat</span> <span class="p">=</span> <span class="s">$"I need to interpolate </span><span class="p">{</span><span class="n">value1</span><span class="p">}</span><span class="s">, </span><span class="p">{</span><span class="n">value2</span><span class="p">}</span><span class="s">, and </span><span class="p">{</span><span class="n">value3</span><span class="p">}</span><span class="s">"</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>This won’t compile because, well, it just doesn’t make any sense:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">static</span> <span class="kt">string</span> <span class="n">SomethingFormat</span> <span class="p">=</span> <span class="s">$"I need to interpolate </span><span class="p">{</span><span class="n">value1</span><span class="p">}</span><span class="s">, </span><span class="p">{</span><span class="n">value2</span><span class="p">}</span><span class="s">, and </span><span class="p">{</span><span class="n">value3</span><span class="p">}</span><span class="s">"</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>The underlying problem is that what we’re attempting to create is not a constant at all, but a function - in this case a function that takes three arguments and returns a <code class="highlighter-rouge">string</code>.</p>
+
+<p>The “pattern” illustrated at the outset worked, but was seriously flawed. Why? Because we can do this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">const</span> <span class="kt">string</span> <span class="n">SomethingFormat</span> <span class="p">=</span> <span class="s">"I need to interpolate {0}, {1}, and {2} ... and {3}!"</span><span class="p">;</span>
+
+<span class="kt">string</span> <span class="nf">GetInterpolatedString</span><span class="p">(</span><span class="kt">string</span> <span class="n">value0</span><span class="p">,</span> <span class="n">DateTime</span> <span class="n">value1</span><span class="p">,</span> <span class="kt">int</span> <span class="n">value2</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">return</span> <span class="kt">string</span><span class="p">.</span><span class="nf">Format</span><span class="p">(</span><span class="n">SomethingFormat</span><span class="p">,</span> <span class="n">value0</span><span class="p">,</span> <span class="n">value1</span><span class="p">,</span> <span class="n">value2</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>…and it compiles but gives a runtime error because our constant expects four arguments but we’re supplying three. We though we were being clever (okay, I did) by storing the <code class="highlighter-rouge">string</code> as a constant, but its disconnection from the function that uses it makes it fragile. Sure, I could write a unit test, but string interpolation is better because in addition to being easier to read and write, it gives us compiler errors instead of runtime errors when it’s wrong.</p>
+
+<p>It also becomes harder to understand if the constant is used in many places, which means that we won’t see the constant when we’re
+modifying methods that use it and vice versa.</p>
+
+<p>Again, what we’re really trying to accomplish is not a constant, but a function.</p>
+
+<p>One way to accomplish that is to replace our constant with a function, perhaps like this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">static</span> <span class="kt">string</span> <span class="nf">FormatSomething</span><span class="p">(</span><span class="kt">string</span> <span class="n">foo</span><span class="p">,</span> <span class="kt">int</span> <span class="n">bar</span><span class="p">,</span> <span class="n">DateTime</span> <span class="n">date</span><span class="p">)</span>
+<span class="p">{</span>
+    <span class="k">return</span> <span class="s">$"I need to interpolate </span><span class="p">{</span><span class="n">foo</span><span class="p">}</span><span class="s">, </span><span class="p">{</span><span class="n">bar</span><span class="p">}</span><span class="s">, and </span><span class="p">{</span><span class="n">date</span><span class="p">}</span><span class="s">"</span><span class="p">;</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>That’s way better, but there’s still a problem. What if this function isn’t limited in use to one class or method, and I change it? 
+Yes, I’ll get a compiler error, and that’s good, but the compiler error will arguably be in the <em>wrong place</em>. 
+This function is a bit like a class that implements an interface. It exists to serve a particular purpose for its consumers. 
+If I change it, perhaps by adding or removing arguments, the compiler error will indicate that its consumers are calling it with the wrong arguments. 
+But that’s not really the case. I’ve actually broken the function so that it no longer fulfills the requirements of its consumers.</p>
+
+<p>What I really want is a compiler error on the function, indicating that its signature is wrong, just like the one I get when
+a class implements an interface but doesn’t have the correct methods or signatures.</p>
+
+<p>How can we specify that a method, not a class, implements an expected signature? With a delegate:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">delegate</span> <span class="kt">string</span> <span class="nf">FormatSomethingFunction</span><span class="p">(</span><span class="kt">string</span> <span class="n">foo</span><span class="p">,</span> <span class="kt">int</span> <span class="n">bar</span><span class="p">,</span> <span class="n">DateTime</span> <span class="n">date</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>The implementation would look like this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">static</span> <span class="n">FormatSomethingFunction</span> <span class="n">FormatSomething</span> <span class="p">{</span> <span class="k">get</span><span class="p">;</span> <span class="p">}</span> <span class="p">=</span> <span class="p">(</span><span class="n">foo</span><span class="p">,</span> <span class="n">bar</span><span class="p">,</span> <span class="n">date</span><span class="p">)</span> <span class="p">=&gt;</span> 
+    <span class="s">$"I need to interpolate </span><span class="p">{</span><span class="n">foo</span><span class="p">}</span><span class="s">, </span><span class="p">{</span><span class="n">bar</span><span class="p">}</span><span class="s">, and </span><span class="p">{</span><span class="n">date</span><span class="p">}</span><span class="s">"</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>Just as a class implements an interface, the method is explicitly required to conform to the delegate’s signature.</p>
+
+<p>As I side note, I recently realized that for years, when I need to create an abstraction to supply a method to a class, 
+I almost always created an interface and a class implementation, even though all I needed was a single method. To be honest,
+I never even considered using delegates, even though they exist for exactly that purpose - creating abstractions for methods. 
+And, to my surprise, I found that many times using a more specific tool <a href="http://scotthannen.org/blog/2018/03/18/depending-on-functions-instead-of-interfaces.html">leads to unexpected benefits</a>.</p>
+
+<p>Why not this?</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">static</span> <span class="n">Func</span><span class="p">&lt;</span><span class="kt">string</span><span class="p">,</span> <span class="kt">int</span><span class="p">,</span> <span class="n">DateTime</span><span class="p">,</span> <span class="kt">string</span><span class="p">&gt;</span> <span class="n">FormatSomething</span> <span class="p">{</span> <span class="k">get</span><span class="p">;</span> <span class="p">}</span> <span class="p">=</span> <span class="p">(</span><span class="n">foo</span><span class="p">,</span> <span class="n">bar</span><span class="p">,</span> <span class="n">date</span><span class="p">)</span> <span class="p">=&gt;</span> 
+    <span class="s">$"I need to interpolate </span><span class="p">{</span><span class="n">foo</span><span class="p">}</span><span class="s">, </span><span class="p">{</span><span class="n">bar</span><span class="p">}</span><span class="s">, and </span><span class="p">{</span><span class="n">date</span><span class="p">}</span><span class="s">"</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>If we just use a method signature instead of a delegate then the function’s intended use is not as clear. 
+We could have functions for entirely unrelated purposes that have the exact same signatures. 
+Using a delegate and naming it (clearly) enables to communicate not just its signature but its purpose.</p>
+
+<p>The initial problem almost seems too small to be called a problem. But what we’ve accomplished is:</p>
+
+<ol>
+  <li>We’ve leveraged strong typing so that runtime errors are replaced with compiler errors. There’s no compile-time relationship between a format string and its arguments. String interpolation improves on that, so we’re taking advantage of it.</li>
+  <li>We’re declaring the intent of our code as explicitly as possible so that future developers can easily understand what they’re about to modify. (I’d say, “modify or debug”, but the previous point makes debugging less likely.)</li>
+</ol>
+
+<p>It’s only a tiny bit more readable and easier to understand than a <code class="highlighter-rouge">string.Format</code> constant, so readability isn’t the big benefit. 
+The more likely savings are the time someone doesn’t spend figuring out why the change they made broke something.</p>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>

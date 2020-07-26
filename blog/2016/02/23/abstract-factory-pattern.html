@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>Abstract Factory Pattern</title>
+    <meta name="description" content="What is a scenario in which we might use an abstract factory, and how can we create one?">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2016/02/23/abstract-factory-pattern.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Abstract Factory Pattern</h1>
+    <p class="post-meta"><time datetime="2016-02-23T06:20:58-05:00" itemprop="datePublished">Feb 23, 2016</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>What is a scenario in which we might use an abstract factory, and how can we create one?</p>
+
+<p>Let’s start with a class that’s going to validate orders. The class is <code class="highlighter-rouge">OrderValidator</code>, and it depends on an <code class="highlighter-rouge">AddressValidator</code> to validate the orders’ shipping addresses.</p>
+
+<p>I’m starting off correctly without making <code class="highlighter-rouge">OrderValidator</code> directly dependent on <code class="highlighter-rouge">AddressValidator</code>. Instead <code class="highlighter-rouge">OrderValidator</code> depends on an interface, <code class="highlighter-rouge">IAddressValidator</code>. That keeps the classes decoupled and makes them easier to test.</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">OrderValidator</span>
+    <span class="p">{</span>
+        <span class="k">private</span> <span class="k">readonly</span> <span class="n">IAddressValidator</span> <span class="n">_addressValidator</span><span class="p">;</span>
+
+        <span class="k">public</span> <span class="nf">OrderValidator</span><span class="p">(</span><span class="n">IAddressValidator</span> <span class="n">addressValidator</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">_addressValidator</span> <span class="p">=</span> <span class="n">addressValidator</span><span class="p">;</span>
+        <span class="p">}</span>
+        <span class="k">public</span> <span class="n">IEnumerable</span><span class="p">&lt;</span><span class="n">ValidationError</span><span class="p">&gt;</span> <span class="nf">ValidateAddress</span><span class="p">(</span><span class="n">Order</span> <span class="n">order</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="k">return</span> <span class="n">_addressValidator</span><span class="p">.</span><span class="nf">Validate</span><span class="p">(</span><span class="n">order</span><span class="p">.</span><span class="n">ShippingAddress</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>But suppose I ship to multiple countries, and the address validations are so different that I need different classes to do validations for different countries?</p>
+
+<p>I could create a factory class that provides the needed validator depending on the ISO 3166 country code. But even with just a few countries it’s easy to see how this can get out of hand:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">AddressValidatorFactory</span>
+    <span class="p">{</span>
+        <span class="k">public</span> <span class="n">IAddressValidator</span> <span class="nf">GetAddressValidator</span><span class="p">(</span><span class="n">Address</span> <span class="n">address</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">IAddressValidator</span> <span class="n">validator</span><span class="p">;</span>
+            <span class="k">switch</span> <span class="p">(</span><span class="n">address</span><span class="p">.</span><span class="n">CountryCode</span><span class="p">)</span>
+            <span class="p">{</span>
+                <span class="k">case</span> <span class="s">"USA"</span><span class="p">:</span>
+                    <span class="p">{</span>
+                        <span class="n">validator</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">UnitedStatesAddressValidator</span><span class="p">();</span>
+                        <span class="k">break</span><span class="p">;</span>
+                    <span class="p">}</span>
+                <span class="k">case</span> <span class="s">"FIN"</span><span class="p">:</span>
+                    <span class="p">{</span>
+                        <span class="n">validator</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">FinlandAddressValidator</span><span class="p">();</span>
+                        <span class="k">break</span><span class="p">;</span>
+                    <span class="p">}</span>
+                <span class="k">case</span> <span class="s">"MWI"</span><span class="p">:</span>
+                    <span class="p">{</span>
+                        <span class="n">validator</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">MalawiAddressValidator</span><span class="p">();</span>
+                        <span class="k">break</span><span class="p">;</span>
+                    <span class="p">}</span>
+                <span class="k">default</span><span class="p">:</span>
+                    <span class="p">{</span>
+                        <span class="n">validator</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">CommonCountryAddressValidator</span><span class="p">();</span>
+                        <span class="k">break</span><span class="p">;</span>
+                    <span class="p">}</span>
+            <span class="p">}</span>
+            <span class="k">return</span> <span class="n">validator</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>This could be problem. And what happens if <code class="highlighter-rouge">MalawiAddressValidator</code> has dependencies of its own? Is my factory class going to contain</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="n">validator</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">MalawiAddressValidator</span><span class="p">(</span><span class="k">new</span> <span class="nf">MalawiPostalCodeValidator</span><span class="p">());</span>
+</code></pre></div></div>
+
+<p>That gets messy. Now my <code class="highlighter-rouge">AddressValidatorFactory</code> will end up with a long switch statement, and it will have direct dependencies on every individual validator and the dependencies of each of those validators. What I really want is to use dependency injection (constructor injection) in each one of these classes. That means that instead of calling <code class="highlighter-rouge">new FinlandAddressValidator()</code> and <code class="highlighter-rouge">new MalawiAddressValidator()</code> I have to allow my dependency injection container (like <a href="https://github.com/castleproject/Windsor/blob/master/docs/README.md">Castle Windsor</a>) to create these classes. How do I do that?</p>
+
+<p>The pieces might not make sense by themselves, but they will when we put them together.</p>
+
+<p>First we need an interface representing a factory class to create instances of <code class="highlighter-rouge">IAddressValidator</code>. (It’s an abstract factory because it’s not a concrete class - it’s an abstraction of the factory.)</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">interface</span> <span class="nc">IAddressValidatorFactory</span>
+    <span class="p">{</span>
+        <span class="n">IAddressValidator</span> <span class="nf">GetAddressValidator</span><span class="p">(</span><span class="n">Address</span> <span class="n">address</span><span class="p">);</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>Next, since I’m using Castle Windsor, I’m going to declare a class that will get the name of the specific <code class="highlighter-rouge">IAddressValidator</code> to use based on the country code.</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">AddressValidatorSelector</span> <span class="p">:</span> <span class="n">DefaultTypedFactoryComponentSelector</span>
+    <span class="p">{</span>
+        <span class="k">public</span> <span class="nf">AddressValidatorSelector</span><span class="p">()</span> 
+            <span class="p">:</span> <span class="k">base</span><span class="p">(</span><span class="n">fallbackToResolveByTypeIfNameNotFound</span><span class="p">:</span> <span class="k">true</span><span class="p">)</span> <span class="p">{</span> <span class="p">}</span>
+
+        <span class="k">protected</span> <span class="k">override</span> <span class="kt">string</span> <span class="nf">GetComponentName</span><span class="p">(</span><span class="n">MethodInfo</span> <span class="n">method</span><span class="p">,</span> <span class="kt">object</span><span class="p">[]</span> <span class="n">arguments</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="k">return</span> <span class="s">"AddressValidatorFor_"</span> <span class="p">+</span> <span class="p">((</span><span class="n">Address</span><span class="p">)</span><span class="n">arguments</span><span class="p">[</span><span class="m">0</span><span class="p">]).</span><span class="n">CountryCode</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>Why is this class converting an <code class="highlighter-rouge">Address</code> into a string, like “AddressValidatorFor_MWI”? Because now we can register different implementations of <code class="highlighter-rouge">IAddressValidator</code> with the Windsor container by name.</p>
+
+<p>Here’s what the component registration will look like:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">WindsorInstaller</span> <span class="p">:</span> <span class="n">IWindsorInstaller</span>
+    <span class="p">{</span>
+        <span class="k">public</span> <span class="k">void</span> <span class="nf">Install</span><span class="p">(</span><span class="n">IWindsorContainer</span> <span class="n">container</span><span class="p">,</span> <span class="n">IConfigurationStore</span> <span class="n">store</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">container</span><span class="p">.</span><span class="n">AddFacility</span><span class="p">&lt;</span><span class="n">TypedFactoryFacility</span><span class="p">&gt;();</span>
+            <span class="n">container</span><span class="p">.</span><span class="nf">Register</span><span class="p">(</span>
+                <span class="n">Component</span><span class="p">.</span><span class="n">For</span><span class="p">&lt;</span><span class="n">IAddressValidator</span><span class="p">,</span><span class="n">UnitedStatesAddressValidator</span><span class="p">&gt;()</span>
+                    <span class="p">.</span><span class="nf">Named</span><span class="p">(</span><span class="s">"AddressValidatorFor_USA"</span><span class="p">),</span>
+                <span class="n">Component</span><span class="p">.</span><span class="n">For</span><span class="p">&lt;</span><span class="n">IAddressValidator</span><span class="p">,</span> <span class="n">FinlandAddressValidator</span><span class="p">&gt;()</span>
+                    <span class="p">.</span><span class="nf">Named</span><span class="p">(</span><span class="s">"AddressValidatorFor_FIN"</span><span class="p">),</span>
+                <span class="n">Component</span><span class="p">.</span><span class="n">For</span><span class="p">&lt;</span><span class="n">IAddressValidator</span><span class="p">,</span> <span class="n">MalawiAddressValidator</span><span class="p">&gt;()</span>
+                    <span class="p">.</span><span class="nf">Named</span><span class="p">(</span><span class="s">"AddressValidatorFor_MWI"</span><span class="p">),</span>
+                <span class="n">Component</span><span class="p">.</span><span class="n">For</span><span class="p">&lt;</span><span class="n">IAddressValidator</span><span class="p">,</span> <span class="n">CommonCountryAddressValidator</span><span class="p">&gt;()</span>
+                    <span class="p">.</span><span class="nf">Named</span><span class="p">(</span><span class="s">"FallbackCountryAddressValidator"</span><span class="p">)</span>
+                    <span class="p">.</span><span class="nf">IsDefault</span><span class="p">()</span>            
+                <span class="p">);</span>
+            <span class="n">container</span><span class="p">.</span><span class="nf">Register</span><span class="p">(</span>
+                <span class="n">Component</span><span class="p">.</span><span class="n">For</span><span class="p">&lt;</span><span class="n">IAddressValidatorFactory</span><span class="p">&gt;()</span>
+                    <span class="p">.</span><span class="nf">AsFactory</span><span class="p">(</span><span class="k">new</span> <span class="nf">AddressValidatorSelector</span><span class="p">())</span>
+                <span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<ul>
+  <li>First we add the <code class="highlighter-rouge">TypedFactoryFacility</code>. That enables Windsor to work with abstract factories.</li>
+  <li>Then we register the individual validators by name.</li>
+  <li>We tell Windsor that when there’s a dependency on <code class="highlighter-rouge">IAddressValidatorFactory</code>, it should provide a factory that uses our <code class="highlighter-rouge">AddressValidatorSelector</code>. We don’t create a class to implement the factory. Windsor creates that. What we provide is the selector that tells the factory how to take the argument (an <code class="highlighter-rouge">Address</code>) and determine the name of the validator to create.</li>
+</ul>
+
+<p>What happens if the country code is “HRV” and we don’t have an address validator registered with the name “AddressValidatorFor_HRV?” Going back to the <code class="highlighter-rouge">AddressValidatorSelector</code>, we passed in parameter to the base class constructor, <code class="highlighter-rouge">fallbackToResolveByTypeIfNameNotFound: true</code>. That tells the selector that if it can’t find anything matching the name to return the default implementation, <code class="highlighter-rouge">CommonCountryAddressValidator</code>. So if we register a validator for a country, we get that validator. If we haven’t registered one then we get a backup.</p>
+
+<p>(What if multiple countries can use one validator? We don’t have to create a class for every single country. We could register the same class for multiple countries or perhaps put that logic in <code class="highlighter-rouge">AddressValidatorSelector</code>.)</p>
+
+<h2 id="testing-the-abstract-factory">Testing the Abstract Factory</h2>
+
+<p>How could we possibly know if all this works? We don’t want to write a big chunk of the application, run it, and only then find out if this blows up. So we write a few unit tests. We want to test that the factory returns the <code class="highlighter-rouge">IAddressValidator</code> we expect for different addresses.</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="p">[</span><span class="n">TestClass</span><span class="p">]</span>
+    <span class="k">public</span> <span class="k">class</span> <span class="nc">AddressValidatorAbstractFactoryTests</span>
+    <span class="p">{</span>
+        <span class="p">[</span><span class="n">TestMethod</span><span class="p">]</span>
+        <span class="k">public</span> <span class="k">void</span> <span class="nf">AddressValidatorAbstractFactory_ReturnsCorrectValidatorForCountry</span><span class="p">()</span>
+        <span class="p">{</span>
+            <span class="kt">var</span> <span class="n">container</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">WindsorContainer</span><span class="p">();</span>
+            <span class="n">container</span><span class="p">.</span><span class="nf">Install</span><span class="p">(</span><span class="k">new</span> <span class="nf">WindsorInstaller</span><span class="p">());</span>
+            <span class="kt">var</span> <span class="n">factory</span> <span class="p">=</span> <span class="n">container</span><span class="p">.</span><span class="n">Resolve</span><span class="p">&lt;</span><span class="n">IAddressValidatorFactory</span><span class="p">&gt;();</span>
+            <span class="kt">var</span> <span class="n">address</span> <span class="p">=</span> <span class="k">new</span> <span class="n">Address</span> <span class="p">{</span> <span class="n">CountryCode</span> <span class="p">=</span> <span class="s">"FIN"</span> <span class="p">};</span>
+            <span class="kt">var</span> <span class="n">validator</span> <span class="p">=</span> <span class="n">factory</span><span class="p">.</span><span class="nf">CreateAddressValidator</span><span class="p">(</span><span class="n">address</span><span class="p">);</span>
+            <span class="n">Assert</span><span class="p">.</span><span class="nf">IsInstanceOfType</span><span class="p">(</span><span class="n">validator</span><span class="p">,</span> <span class="k">typeof</span><span class="p">(</span><span class="n">FinlandAddressValidator</span><span class="p">));</span>
+            <span class="n">factory</span><span class="p">.</span><span class="nf">Release</span><span class="p">(</span><span class="n">validator</span><span class="p">);</span>
+        <span class="p">}</span>
+
+        <span class="p">[</span><span class="n">TestMethod</span><span class="p">]</span>
+        <span class="k">public</span> <span class="k">void</span> <span class="nf">AddressValidatorAbstractFactory_ReturnsDefaultValidatorForUnknownCountry</span><span class="p">()</span>
+        <span class="p">{</span>
+            <span class="kt">var</span> <span class="n">container</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">WindsorContainer</span><span class="p">();</span>
+            <span class="n">container</span><span class="p">.</span><span class="nf">Install</span><span class="p">(</span><span class="k">new</span> <span class="nf">WindsorInstaller</span><span class="p">());</span>
+            <span class="kt">var</span> <span class="n">factory</span> <span class="p">=</span> <span class="n">container</span><span class="p">.</span><span class="n">Resolve</span><span class="p">&lt;</span><span class="n">IAddressValidatorFactory</span><span class="p">&gt;();</span>
+            <span class="kt">var</span> <span class="n">address</span> <span class="p">=</span> <span class="k">new</span> <span class="n">Address</span> <span class="p">{</span> <span class="n">CountryCode</span> <span class="p">=</span> <span class="s">"XYZ"</span> <span class="p">};</span>
+            <span class="kt">var</span> <span class="n">validator</span> <span class="p">=</span> <span class="n">factory</span><span class="p">.</span><span class="nf">CreateAddressValidator</span><span class="p">(</span><span class="n">address</span><span class="p">);</span>
+            <span class="n">Assert</span><span class="p">.</span><span class="nf">IsInstanceOfType</span><span class="p">(</span><span class="n">validator</span><span class="p">,</span> <span class="k">typeof</span><span class="p">(</span><span class="n">CommonCountryAddressValidator</span><span class="p">));</span>
+            <span class="n">factory</span><span class="p">.</span><span class="nf">Release</span><span class="p">(</span><span class="n">validator</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span> 
+</code></pre></div></div>
+
+<p>The unit tests</p>
+
+<ul>
+  <li>Create a container</li>
+  <li>Install the dependencies using the <code class="highlighter-rouge">WindsorInstaller</code> we created</li>
+  <li>Use the container to resolve an <code class="highlighter-rouge">IAddressValidatorFactory</code></li>
+  <li>Create an <code class="highlighter-rouge">Address</code></li>
+  <li>Tell the factory to create an <code class="highlighter-rouge">IAddressValidator</code> for the <code class="highlighter-rouge">Address</code></li>
+  <li>Verify that the <code class="highlighter-rouge">IAddressValidator</code> is of the expected type.</li>
+</ul>
+
+<p>I expected at least a little bit of debugging, but both tests passed on the first try. (If I did need to fix an error, it would be much easier while writing the unit tests than later.)</p>
+
+<p>The result?</p>
+
+<ul>
+  <li>We have an abstract factory that knows how to provide the correct address validator depending on the address’s country.</li>
+  <li>We keep all of that logic out of the classes that require address validation. They don’t need to know about that. Now those classes remain simpler and easier to test.</li>
+  <li>We can modify the address validators and how we select them without changing surrounding classes.</li>
+  <li>We can write individual address validator classes that are also easier to test in isolation.</li>
+</ul>
+
+<h2 id="last-thoughts">Last Thoughts</h2>
+
+<p>Hypothetically, if we were to support one hundred countries and between them they used a few dozen validators (seems unlikely) then we’re still going to need some code or other mechanism that matches the countries with the validators. That’s okay because we can now keep it far away from our other application code. We could put it in its own separate Windsor installer class. The purpose of that class is to match dependencies with implementations so all that code belongs there.</p>
+
+<p>Here’s what <code class="highlighter-rouge">OrderValidator</code> looks like now. We’ve added some complexity behind the scenes but this class is unaware of it.</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">OrderValidator</span>
+    <span class="p">{</span>
+        <span class="k">private</span> <span class="k">readonly</span> <span class="n">IAddressValidatorFactory</span> <span class="n">_addressValidatorFactory</span><span class="p">;</span>
+
+        <span class="k">public</span> <span class="nf">OrderValidator</span><span class="p">(</span><span class="n">IAddressValidatorFactory</span> <span class="n">addressValidatorFactory</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">_addressValidatorFactory</span> <span class="p">=</span> <span class="n">addressValidatorFactory</span><span class="p">;</span>
+        <span class="p">}</span>
+        <span class="k">public</span> <span class="n">IEnumerable</span><span class="p">&lt;</span><span class="n">ValidationError</span><span class="p">&gt;</span> <span class="nf">ValidateAddress</span><span class="p">(</span><span class="n">Order</span> <span class="n">order</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="kt">var</span> <span class="n">addressValidator</span> <span class="p">=</span> <span class="n">_addressValidatorFactory</span><span class="p">.</span><span class="nf">CreateAddressValidator</span><span class="p">(</span><span class="n">order</span><span class="p">.</span><span class="n">ShippingAddress</span><span class="p">);</span>
+            <span class="k">return</span> <span class="n">addressValidator</span><span class="p">.</span><span class="nf">Validate</span><span class="p">(</span><span class="n">order</span><span class="p">.</span><span class="n">ShippingAddress</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>The logic around how to choose a validator could change. Maybe we don’t just select validators by country. Maybe addresses get validated by more than one concrete class. We can change all of that without changing <code class="highlighter-rouge">OrderValidator</code>.</p>
+
+<p>Here’s some <a href="https://github.com/castleproject/Windsor/blob/master/docs/typed-factory-facility-interface-based.md">official documentation</a> on Castle Windsor’s Typed Factory Facility.</p>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>

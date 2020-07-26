@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>Dependency Injection - Resolving Collections of Dependencies</title>
+    <meta name="description" content="This is a useful tool for composing classes that use other classes while keeping their responsibilities separate. And it highlights some other helpful design...">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2016/02/21/dependency-injection-resolving-collections.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Dependency Injection - Resolving Collections of Dependencies</h1>
+    <p class="post-meta"><time datetime="2016-02-21T06:20:58-05:00" itemprop="datePublished">Feb 21, 2016</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>This is a useful tool for composing classes that use other classes while keeping their responsibilities separate. And it highlights some other helpful design principles that are assisted by dependency injection.</p>
+
+<p>Suppose we have a class that’s going to validate an order for some products. It takes an instance of an <code class="highlighter-rouge">Order</code> class and returns a collection of <code class="highlighter-rouge">ValidationMessage</code> objects.</p>
+
+<p>The list of validations it will perform (subject to change) is</p>
+
+<ul>
+  <li>Valid address</li>
+  <li>The quantity for each line is at least one</li>
+  <li>No items are shipped to states where they are illegal</li>
+</ul>
+
+<p>Right away it’s obvious that there are way too many things going on to put in one class. Between all of these validations there could be a few different services to call and business rules to implement. But whatever class requires those validations shouldn’t actually know or care what they are.</p>
+
+<p>This is bad:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">OrderProcessor</span>
+    <span class="p">{</span>
+        <span class="k">public</span> <span class="k">void</span> <span class="nf">ProcessOrder</span><span class="p">(</span><span class="n">Order</span> <span class="n">order</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="kt">var</span> <span class="n">addressValidator</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">AddressValidator</span><span class="p">();</span>
+            <span class="kt">var</span> <span class="n">orderLinesValidator</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">OrderLinesValidator</span><span class="p">();</span>
+            <span class="kt">var</span> <span class="n">productStateRestrictionsValidator</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">ProductStateRestrictionsValidator</span><span class="p">();</span>
+            <span class="kt">var</span> <span class="n">validationMessages</span> <span class="p">=</span> <span class="k">new</span> <span class="n">List</span><span class="p">&lt;</span><span class="n">ValidationMessage</span><span class="p">&gt;();</span>
+            <span class="n">validationMessages</span><span class="p">.</span><span class="nf">AddRange</span><span class="p">(</span><span class="n">addressValidator</span><span class="p">.</span><span class="nf">GetValidationMessages</span><span class="p">(</span><span class="n">order</span><span class="p">));</span>
+            <span class="n">validationMessages</span><span class="p">.</span><span class="nf">AddRange</span><span class="p">(</span><span class="n">orderLinesValidator</span><span class="p">.</span><span class="nf">GetValidationMessages</span><span class="p">(</span><span class="n">order</span><span class="p">));</span>
+            <span class="n">validationMessages</span><span class="p">.</span><span class="nf">AddRange</span><span class="p">(</span><span class="n">productStateRestrictionsValidator</span><span class="p">.</span><span class="nf">GetValidationMessages</span><span class="p">(</span><span class="n">order</span><span class="p">));</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">validationMessages</span><span class="p">.</span><span class="nf">Any</span><span class="p">())</span>
+            <span class="p">{</span>
+                <span class="nf">RejectOrder</span><span class="p">(</span><span class="n">order</span><span class="p">,</span> <span class="n">validationMessages</span><span class="p">);</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p><code class="highlighter-rouge">OrderProcessor</code> depends on each individual validator. That means that we can’t test <code class="highlighter-rouge">OrderProcessor</code> without testing all of the individual validators. Those classes might contain still other classes, so it’s impossible to test this class without also testing everything it depends on. (We can break it down into smaller methods, but that doesn’t even address the problem of its dependencies.)</p>
+
+<p>Wouldn’t <code class="highlighter-rouge">OrderProcessor</code> be much simpler and easier to test if there was only one <code class="highlighter-rouge">IOrderValidator</code>?</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">OrderProcessor</span>
+    <span class="p">{</span>
+        <span class="k">private</span> <span class="k">readonly</span> <span class="n">IOrderValidator</span> <span class="n">_orderValidator</span><span class="p">;</span>
+
+        <span class="k">public</span> <span class="nf">OrderProcessor</span><span class="p">(</span><span class="n">IOrderValidator</span> <span class="n">orderValidator</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">_orderValidator</span> <span class="p">=</span> <span class="n">orderValidator</span><span class="p">;</span>
+        <span class="p">}</span>
+
+        <span class="k">public</span> <span class="k">void</span> <span class="nf">ProcessOrder</span><span class="p">(</span><span class="n">Order</span> <span class="n">order</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="kt">var</span> <span class="n">validationMessages</span> <span class="p">=</span> <span class="n">_orderValidator</span><span class="p">.</span><span class="nf">GetValidationMessages</span><span class="p">(</span><span class="n">order</span><span class="p">);</span>
+            <span class="k">if</span> <span class="p">(</span><span class="n">validationMessages</span><span class="p">.</span><span class="nf">Any</span><span class="p">())</span>
+            <span class="p">{</span>
+                <span class="nf">RejectOrder</span><span class="p">(</span><span class="n">order</span><span class="p">,</span> <span class="n">validationMessages</span><span class="p">);</span>
+            <span class="p">}</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>When we’re testing <code class="highlighter-rouge">OrderProcessor</code> we don’t really care about the specifics of the validations. The responsibility of this class is just to reject the order if there are validation messages.</p>
+
+<p>So if there are multiple validations, how does this class depend on just one <code class="highlighter-rouge">IOrderValidator</code>? Like this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>
+    <span class="k">public</span> <span class="k">class</span> <span class="nc">OrderValidator</span> <span class="p">:</span> <span class="n">IOrderValidator</span>
+    <span class="p">{</span>
+        <span class="k">private</span> <span class="k">readonly</span> <span class="n">IOrderValidator</span><span class="p">[]</span> <span class="n">_subValidators</span><span class="p">;</span>
+
+        <span class="k">public</span> <span class="nf">OrderValidator</span><span class="p">(</span><span class="n">IOrderValidator</span><span class="p">[]</span> <span class="n">subValidators</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">_subValidators</span> <span class="p">=</span> <span class="n">subValidators</span><span class="p">;</span>
+        <span class="p">}</span>
+
+        <span class="k">public</span> <span class="n">IEnumerable</span><span class="p">&lt;</span><span class="n">ValidationMessage</span><span class="p">&gt;</span> <span class="nf">GetValidationMessages</span><span class="p">(</span><span class="n">Order</span> <span class="n">order</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="k">return</span> <span class="n">_subValidators</span><span class="p">.</span><span class="nf">Select</span><span class="p">(</span>
+                <span class="n">validator</span> <span class="p">=&gt;</span> <span class="n">validator</span><span class="p">.</span><span class="nf">GetValidationMessages</span><span class="p">(</span><span class="n">order</span><span class="p">).</span><span class="nf">ToArray</span><span class="p">())</span>
+                <span class="p">.</span><span class="nf">SelectMany</span><span class="p">(</span><span class="n">validationMessage</span> <span class="p">=&gt;</span> <span class="n">validationMessage</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p><code class="highlighter-rouge">OrderValidator</code> contains an array of <code class="highlighter-rouge">IOrderValidator</code>. It passes the order to each one and returns all of the results. This class is also very easy to test because it doesn’t care about the implementations of any validations either. So we can write a unit test using a few mocked (fake) implementations of <code class="highlighter-rouge">IOrderValidator</code>.</p>
+
+<p>But where does the array of <code class="highlighter-rouge">IOrderValidator</code> in the constructor come from? This is done through our dependency injection container, in this case from Castle Windsor. (It doesn’t have to be Windsor. If our classes depend on Windsor or another specific brand of DI that’s bad.)</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">DependencyRegistration</span> <span class="p">:</span> <span class="n">IWindsorInstaller</span>
+    <span class="p">{</span>
+        <span class="k">public</span> <span class="k">void</span> <span class="nf">Install</span><span class="p">(</span><span class="n">IWindsorContainer</span> <span class="n">container</span><span class="p">,</span> <span class="n">IConfigurationStore</span> <span class="n">store</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">container</span><span class="p">.</span><span class="n">Kernel</span><span class="p">.</span><span class="n">Resolver</span><span class="p">.</span><span class="nf">AddSubResolver</span><span class="p">(</span><span class="k">new</span> <span class="nf">CollectionResolver</span><span class="p">(</span><span class="n">container</span><span class="p">.</span><span class="n">Kernel</span><span class="p">));</span>
+            <span class="n">container</span><span class="p">.</span><span class="nf">Register</span><span class="p">(</span>
+                <span class="n">Component</span><span class="p">.</span><span class="n">For</span><span class="p">&lt;</span><span class="n">IOrderValidator</span><span class="p">,</span> <span class="n">OrderValidator</span><span class="p">&gt;()</span>
+                    <span class="p">.</span><span class="nf">Named</span><span class="p">(</span><span class="s">"CompositeOrderValidator"</span><span class="p">)</span>
+                    <span class="p">.</span><span class="nf">IsDefault</span><span class="p">());</span>
+
+            <span class="n">container</span><span class="p">.</span><span class="nf">Register</span><span class="p">(</span>
+                <span class="n">Component</span><span class="p">.</span><span class="n">For</span><span class="p">&lt;</span><span class="n">IOrderValidator</span><span class="p">,</span><span class="n">AddressValidator</span><span class="p">&gt;()</span>
+                    <span class="p">.</span><span class="nf">Named</span><span class="p">(</span><span class="s">"AddressValidator"</span><span class="p">),</span>
+                <span class="n">Component</span><span class="p">.</span><span class="n">For</span><span class="p">&lt;</span><span class="n">IOrderValidator</span><span class="p">,</span><span class="n">OrderLinesValidator</span><span class="p">&gt;()</span>
+                    <span class="p">.</span><span class="nf">Named</span><span class="p">(</span><span class="s">"OrderLinesValidator"</span><span class="p">),</span>
+                <span class="n">Component</span><span class="p">.</span><span class="n">For</span><span class="p">&lt;</span><span class="n">IOrderValidator</span><span class="p">,</span><span class="n">ProductStateRestrictionsValidator</span><span class="p">&gt;()</span>
+                    <span class="p">.</span><span class="nf">Named</span><span class="p">(</span><span class="s">"ProductStateRestrictionsValidator"</span><span class="p">)</span>
+                <span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<h2 id="how-does-this-work">How Does This Work?</h2>
+
+<p>We add the <code class="highlighter-rouge">CollectionResolver</code> as a SubResolver. That tells Windsor that if we have a dependency on a collection of <code class="highlighter-rouge">IOrderValidator</code>, it can provide a collection of all of the registered implementations and inject that collection.</p>
+
+<p>If we have a dependency on just one <code class="highlighter-rouge">IOrderValidator</code>, the container will supply <code class="highlighter-rouge">OrderValidator</code> (instead of <code class="highlighter-rouge">AddressValidator</code>, <code class="highlighter-rouge">OrderLinesValidator</code>, etc.) because we specified <code class="highlighter-rouge">.IsDefault</code> for that registration. (If we have multiple registrations for the same dependency then it’s vital to specify a default. Otherwise at runtime Windsor will pick one unpredictably. It might work as expected in testing and then fail in production. I learned that the hard way.)</p>
+
+<p>Windsor is smart enough to avoid recursion by including another <code class="highlighter-rouge">OrderValidator</code> in the collection of <code class="highlighter-rouge">IOrderValidator</code>. (I wrote a unit test to be sure. Maybe I’ll post something else on that later.)</p>
+
+<p>We don’t always add a name - <code class="highlighter-rouge">.Named(“Whatever”)</code> – when we register dependencies. That’s necessary if we’re going to have multiple registrations for the same dependency. If we forget then Windsor throws an exception when we try to resolve the dependency. (That’s good – better than working unpredictably.)</p>
+
+<h2 id="what-does-this-accomplish">What Does This Accomplish?</h2>
+
+<h3 id="single-responsibility-classes-are-easier-to-test">Single Responsibility Classes are Easier to Test</h3>
+
+<p><code class="highlighter-rouge">OrderProcessor</code> remains unaware of the specifics of any individual validations. We can test it without having to simultaneously test every one of those validations.</p>
+
+<p>The individual validators don’t depend on <code class="highlighter-rouge">OrderProcessor</code> or each other. Writing unit tests for those individual classes is much easier. And if those validations are complex then we can follow the same pattern in those classes: They depend on other interfaces, and we can write single-responsibility classes for those, and they will be easier to unit test.</p>
+
+<h3 id="maintainability">Maintainability</h3>
+
+<p>Suppose tomorrow we need to add a new validation. We can do that without modifying <code class="highlighter-rouge">OrderProcessor</code> or <code class="highlighter-rouge">OrderValidator</code> at all. We just create a new <code class="highlighter-rouge">IOrderValidator</code> and register it.</p>
+
+<p>We can also modify any of those individual validators in isolation. As a developer, it’s great to know that you can modify the behavior of the application in such a simple way without worrying about breaking unrelated code. What’s more, the code tells you how to modify it. Isn’t that much better than looking at one giant class and wondering how to make a change without breaking everything?</p>
+
+<p>Any one of these validators can eventually encompass some complex behaviors. They might call services and have lots of their own dependencies, but <code class="highlighter-rouge">OrderProcessor</code> and other classes are shielded from that. When you’re working on <code class="highlighter-rouge">ProductStateRestrictionsValidator</code> you don’t have to think about <code class="highlighter-rouge">OrderProcessor</code> and vice versa. That’s the goal: to be able to change one part of the application without thinking too much about the rest. We’re smart, but we can’t expect ourselves or other developers to handle too much complexity at once. Our design protects us from that.</p>
+
+<h3 id="reusability">Reusability</h3>
+
+<p>Reusability is a second-class concern. We hope for it, but it may or may not happen. But here’s how this approach helps:</p>
+
+<p>If the order validation is built into a web page or is a method in another class, then what happens if we create a different way to place orders? If that validation is entangled with the page it lives on or with some other class then it’s harder to use somewhere else. Because it’s decoupled it’s easier to reuse.</p>
+
+<p>The same is true of the address validator. What if we want to validate an address that isn’t part of an order? It’s easier when the validator is a separate class. That class will probably have a dependency on a separate <code class="highlighter-rouge">IPostalCodeValidator</code>, and that will also be reusable.</p>
+
+<p>The same is true of the <code class="highlighter-rouge">ProductStateRestrictionsValidator</code>. At some point we’re going to want to validate whether we can sell a product to a certain state even though an order isn’t being placed. But there will probably be dependencies within that class that we can reuse. We don’t want to have to create a fake Order just to see if we can ship a product to a certain state.</p>
+
+<h2 id="it-all-works-together">It All Works Together</h2>
+
+<p>Here’s the real beauty of it: What makes a class testable is also what makes it reusable and maintainable. (If you can write a unit test for it that proves that it’s not coupled to other classes.) What makes it maintainable is what makes it testable and reusable. That’s one reason why there’s emphasis on testable code. Even if we never write the actual unit tests we get the other benefits. But actually writing the unit tests ensures that our code is testable, and it’s the easiest way to find out immediately whether it works or has bugs.</p>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>

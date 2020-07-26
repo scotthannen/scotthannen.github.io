@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>Invalid Reasons for Ignoring Code Metrics and Analytics</title>
+    <meta name="description" content="Here’s an embarrassing but true story: For the first several years that I developed using .NET I wrote code exclusively in VB.NET. I can’t tell you how many ...">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2018/04/18/invalid-reasons-for-ignoring-code-metrics-analysis.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Invalid Reasons for Ignoring Code Metrics and Analytics</h1>
+    <p class="post-meta"><time datetime="2018-04-18T05:20:58-04:00" itemprop="datePublished">Apr 18, 2018</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>Here’s an embarrassing but true story: For the first several years that I developed using .NET I wrote code exclusively in VB.NET. I can’t tell you how many things I googled twice.</p>
+
+<blockquote>
+  <p><code class="highlighter-rouge">httprequest add authentication headers .NET</code></p>
+</blockquote>
+
+<p>…read a few results…</p>
+
+<blockquote>
+  <p><code class="highlighter-rouge">vb.net httprequest add authentication headers</code></p>
+</blockquote>
+
+<p>One day I checked out a new app someone was working on and saw that he had written it in C#, with braces and semicolons all over the place. My initial response was reactionary. <em>We’ve always used VB.NET! It can do whatever C# can! The change will slow us down! We should all discuss this first!</em></p>
+
+<p>At first I was ready to go to war, but I quickly realized that win or lose, I was on the wrong side. If I somehow won that battle, the prize would be <em>not</em> learning C#. How is that going to look on my resume? So I flipped and immediately started struggling to write new code in C#. Within a week I was over the hump, and within two I never wanted to go back.</p>
+
+<p>This illustrates that when we don’t want to do something new or different we can often find reasons not to, even if they are weak or factually inaccurate.</p>
+
+<p>That brings us to code metrics and static analysis. Just like I didn’t want to switch from VB.NET to C#, we may have lame reasons why we shouldn’t generate or care about metrics that measure aspects of our code, like lines per method, methods per interface, test coverage, or cyclomatic complexity.</p>
+
+<p>Here are a few:</p>
+
+<h3 id="1-you-shouldnt-use-code-metrics-to-manage-developers">1. You shouldn’t use code metrics to manage developers</h3>
+<p>Correct. Code metrics and analysis are developer tools. As developers we use countless tools on our own initiative. These tools are no different.</p>
+
+<h3 id="2-ive-never-heard-of-them">2. I’ve never heard of them</h3>
+<p>I hadn’t heard of them for a long time either. But now you’ve read this far and you’ve heard of them. You can’t unknow it. Boom shakalaka!</p>
+
+<h3 id="3-the-only-metric-that-matters-is-the-value-you-deliver">3. The only metric that matters is the value you deliver</h3>
+<p>Forgive me for being blunt, but this reasoning is based on profound and perhaps willing ignorance of factors that impact the delivery of software. It’s like saying that the only automobile “metrics” that matter are miles traveled and resale value, so we shouldn’t pay attention to numbers like tire pressure, engine temperature, and miles since the last oil change. Is that sound thinking? If we don’t check our tire pressure or keep track of our oil changes, aren’t we putting the ‘only metrics that matter’ at risk?</p>
+
+<p>This relates to the value of our code in two ways. First, if the value that matters is provided by delivering new features with minimal defects, don’t we want to know about problems in our code that might cause us to deliver that value at an exponentially slowing velocity and with more defects? Analyzing metrics isn’t to detract from the significance of delivered value - it’s to ensure that we keep delivering more of it. Achieving a business goal at the cost of increasingly impeding each subsequent achievement is not delivering value.</p>
+
+<p>Second, software must be maintained, likely by someone who comes after us. Isn’t the maintainability of our software a large part of its value? I hope so.</p>
+
+<p>I’m not saying that metrics and analysis are the only way to ensure that we provide value by delivering maintainable code. Rather, the argument that code metrics are somehow at odds with delivering value is ignorant and fallacious. It is the <a href="https://daedtech.com/how-stagnation-is-justified-language-of-the-expert-beginner/">language of the Expert Beginner</a>.</p>
+
+<h3 id="4-code-metrics-are-not-predictive">4. Code metrics are not predictive</h3>
+<p>The purpose of metrics and analysis is not to predict defects. They measure factors which indicate the maintainability of code. Large, incohesive classes and long methods with high cyclomatic complexity are inherently harder to read and understand. They are harder to unit test which means that more time is spent on manual end-to-end tests. Modifications take longer, and, in my experience, are more likely to produce new defects.</p>
+
+<p>There’s an easy way to test, though. Run the Visual Studio metrics or use a static analyzer. Look at whichever classes or methods it indicates are excessively complex. Do you want to make significant changes to them, or even small ones? If not then the analysis has successfully identifed an area for potential improvement.</p>
+
+<h3 id="5-each-component-is-a-snowflake">5. Each component is a snowflake</h3>
+<p>It’s been said that each unit of software is unique, and it follows that no one metric can perfectly measure them all. That’s true. There’s no one blood pressure measurement that’s perfect for every person but we still get it checked. There’s obviously no perfect number of lines of code for every method or number of methods for a class, but if our snowflake has twenty public methods and two thousand lines of code it’s a hailstone.</p>
+
+<h3 id="6-different-tools-measure-cyclomatic-complexity-differently">6. Different tools measure cyclomatic complexity differently</h3>
+<p>True, but the difference is usually insignificant. The speedometers on our cars are only 95-99% accurate, but if they say we’re going 120mph we usually slow down.</p>
+
+<p>High cyclomatic complexity doesn’t automatically mean that a method is a problem. It just gives us a reason to inspect that method and see if it is testable and adequately tested. Maybe there’s a giant <code class="highlighter-rouge">switch</code> statement that isn’t worth refactoring and we can decide to ignore it. In each case we’re using our judgment. A metric does not compel us to change anthing.</p>
+
+<p>I’ve only hinted at why metrics and analysis are useful. Discussing potential objections - some understandable, some less so - took up the whole post. To read more on the subject I recommend <a href="https://blog.ndepend.com/category/code-metrics/">this series of posts</a>.</p>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>

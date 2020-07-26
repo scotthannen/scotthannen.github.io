@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>How I Learned to Stop Worrying and Love the Service Locator</title>
+    <meta name="description" content="Service locators are an anti-pattern. They are what we used before we learned about dependency injection. If you already know what a service locator is and w...">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2018/11/27/stop-worrying-love-service-locator.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">How I Learned to Stop Worrying and Love the Service Locator</h1>
+    <p class="post-meta"><time datetime="2018-11-27T04:20:58-05:00" itemprop="datePublished">Nov 27, 2018</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>Service locators are an anti-pattern. They are what we used before we learned about dependency injection. If you already know what a service locator is and why it’s harmful (it’s unethical to explain one without the other) then skip past this first heading.</p>
+
+<h3 id="why-service-locators-are-evil">Why Service Locators are Evil</h3>
+
+<p>To briefly illustrate what a service locator is and why it’s bad, here’s a “good” class with an injected abstract dependency:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">ClassWithADependency</span>
+    <span class="p">{</span>
+        <span class="k">private</span> <span class="k">readonly</span> <span class="n">IDoesSomethingINeed</span> <span class="n">_somethingINeed</span><span class="p">;</span>
+
+        <span class="k">public</span> <span class="nf">ClassWithADependency</span><span class="p">(</span><span class="n">IDoesSomethingINeed</span> <span class="n">somethingINeed</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">_somethingINeed</span> <span class="p">=</span> <span class="n">somethingINeed</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>It’s easy to tell what the class depends on. It depends on <code class="highlighter-rouge">IDoesSomethingINeed</code>. The class is easy to test. We can use a mock or test double as the dependency.</p>
+
+<p>A service locator is a class that we ask to provide an instance of some dependency for us. It could be an instantiated class or a static class. We might call it like this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">ClassWithADependency</span>
+    <span class="p">{</span>
+        <span class="k">public</span> <span class="k">void</span> <span class="nf">Blarg</span><span class="p">()</span>
+        <span class="p">{</span>
+            <span class="kt">var</span> <span class="n">somethingINeed</span> <span class="p">=</span> <span class="n">ServiceLocator</span><span class="p">.</span><span class="n">GetService</span><span class="p">&lt;</span><span class="n">IDoesSomethingINeed</span><span class="p">&gt;();</span>
+            <span class="n">somethingINeed</span><span class="p">.</span><span class="nf">DoIt</span><span class="p">();</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>It seems convenient. Our logic for creating class instances is hidden away inside of <code class="highlighter-rouge">ServiceLocator</code>. But there are a few big problems:</p>
+
+<p>First, it’s no longer easy to tell what any class depends on. If I’m injecting dependencies in the constructor it’s easy to tell if my class is getting out of control when it has five, six, or a dozen dependencies. The service locator allows us to hide a dependency on absolutely anything in any method. I can do this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">private</span> <span class="nf">SomeMethodDeepWithinMyClass</span><span class="p">()</span>
+    <span class="p">{</span>
+        <span class="kt">var</span> <span class="n">whatIsThis</span> <span class="p">=</span> <span class="n">ServiceLocator</span><span class="p">.</span><span class="n">GetService</span><span class="p">&lt;</span><span class="n">SomethingTotallyUnrelatedToWhatThisClassShouldDo</span><span class="p">&gt;();</span> 
+        <span class="n">whatIsThis</span><span class="p">.</span><span class="nf">DoWhoKnowsWhat</span><span class="p">();</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>This makes it far more convenient to complicate and couple code by adding random dependencies all over the place. The service locator is like a <a href="https://en.wikipedia.org/wiki/Broken_windows_theory">broken window</a>. Once one developer does it, the rest join in.</p>
+
+<p>Second, a class littered with calls to a service locator is difficult to test. If the service locator is a static class then within a unit test you have to configure that static class to return mocks or test doubles, which is more complex than just injecting the mock where it’s needed. Or, if the service locator is itself injected as a dependency, then we have to create a mock that returns more mocks, like this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="kt">var</span> <span class="n">somethingINeedMock</span> <span class="p">=</span> <span class="k">new</span> <span class="n">Mock</span><span class="p">&lt;</span><span class="n">IDoesSomethingINeed</span><span class="p">&gt;();</span>
+    <span class="n">somethingINeedMock</span><span class="p">.</span><span class="nf">Setup</span><span class="p">(</span><span class="n">x</span> <span class="p">=&gt;</span> <span class="n">x</span><span class="p">.</span><span class="nf">GetSomeValue</span><span class="p">()).</span><span class="nf">Returns</span><span class="p">(</span><span class="s">"theValue"</span><span class="p">);</span>
+    <span class="kt">var</span> <span class="n">serviceLocatorMock</span> <span class="p">=</span> <span class="k">new</span> <span class="n">Mock</span><span class="p">&lt;</span><span class="n">IServiceLocator</span><span class="p">&gt;();</span>
+    <span class="n">serviceLocatorMock</span><span class="p">.</span><span class="nf">Setup</span><span class="p">(</span><span class="n">x</span> <span class="p">=&gt;</span> <span class="n">x</span><span class="p">.</span><span class="n">Resolve</span><span class="p">&lt;</span><span class="n">IDoesSomethingINeed</span><span class="p">&gt;()).</span><span class="nf">Returns</span><span class="p">(</span><span class="n">somethingINeedMock</span><span class="p">.</span><span class="n">Object</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>It’s not catastrophic at first but it gets out of control fast. I’ve seen cases where developers just give up because they can’t keep track of what dependencies a class gets from the service locator, so they use setup methods that create service locator mocks that return mocks of everything, whether an individual test needs it or not. At that point it’s nearly impossible to tell what you’re actually testing.</p>
+
+<p>(You may have noticed that a call to a service locator looks a lot like a call to resolve something from a dependency injection container. In fact, if we were to call the container directly from most classes, then that would be using the container as a service locator.)</p>
+
+<h3 id="when-we-need-a-service-locator">When We Need a Service Locator</h3>
+
+<p>In order to properly use dependency injection, we need to control how classes are created at the composition root. ASP.NET Core controllers are an example. They are the classes created to handle incoming requests, and at application startup we can configure them to expect injection of certain dependencies. If those dependencies have their own dependencies, we inject those too. It’s depedency injection all the way down. There’s no need to for a controller to directly resolve something from <code class="highlighter-rouge">ServiceProvider</code> (.NET Core’s dependency injection container), using it like a service locator.</p>
+
+<p>Sometimes properly configuring dependency injection just isn’t an option. What if we’re working in an old WebForms app? WebForms was recently updated to support dependency injection, but it may be too late if you’re working in an old app.</p>
+
+<p>Or, what if you need to work on an existing class and the composition root is hopelessly mangled beyond comprehension? Suppose the class you need to modify looks like this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">ClassINeedToModify</span> <span class="p">:</span> <span class="n">ItInheritsFromThis</span>
+    <span class="p">{</span>
+        <span class="k">public</span> <span class="nf">ClassINeedToModify</span><span class="p">(</span>
+            <span class="n">DependsOnThis</span> <span class="n">thing</span><span class="p">,</span> 
+            <span class="n">AndThis</span> <span class="n">otherThing</span><span class="p">,</span> 
+            <span class="n">KitchenSink</span> <span class="n">kitchenSink</span><span class="p">)</span> 
+            <span class="p">:</span> <span class="k">base</span><span class="p">(</span><span class="n">kitchenSink</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">thing</span><span class="p">.</span><span class="nf">DoSomethingEvil</span><span class="p">(</span><span class="n">otherThing</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>And, by the way, <code class="highlighter-rouge">ItInheritsFromThis</code> is a giant god class that you can’t modify because half the application depends on it. And it’s all created by calling constructors using values from even more static classes with no dependency injection container in sight.</p>
+
+<p>Now you’re out of luck. You want to add new functionality using small, sanely designed, testable classes that employ dependency injection, but the sorry state of the application’s composition root makes it impossible to properly inject your new dependencies into the existing class.</p>
+
+<p>What do we do? Give up and pile onto the mess? Here are a few options.</p>
+
+<h3 id="dependency-injection-with-defaults">Dependency Injection With Defaults</h3>
+
+<p>This might get us where we need to be:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">ClassINeedToAddToTheMess</span>
+    <span class="p">{</span>
+        <span class="k">private</span> <span class="k">readonly</span> <span class="n">IDependsOnThis</span> <span class="n">_dependency</span><span class="p">;</span>
+
+        <span class="k">public</span> <span class="nf">ClassINeedToAddToTheMess</span><span class="p">(</span><span class="n">IDependsOnThis</span> <span class="n">dependency</span> <span class="p">=</span> <span class="k">null</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">_dependency</span> <span class="p">=</span> <span class="n">dependency</span> <span class="p">??</span> <span class="k">new</span> <span class="nf">DependsOnThis</span><span class="p">();</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>Now we can instantiate a new instance of <code class="highlighter-rouge">ClassINeedToAddToTheMess</code> and it will create its own default dependenies, but we can test the class using mocks.</p>
+
+<p>This suffices in some cases where we don’t have a lot of nested dependencies and don’t need to do anything complicated.</p>
+
+<p>But what if we need to construct more complex dependencies using named components and abstract factories - the sort of thing that a dependency injection container facilitates?</p>
+
+<h3 id="create-your-own-composition-root-and-expose-it-with-a-service-locator">Create Your Own Composition Root and Expose It With a Service Locator</h3>
+
+<p>Yes, i’m recommending that you expose yourself to scorn, ridicule, and self-loathing by deliberately and knowingly implementing a recognized anti-pattern. Maybe you’ll feel better if you add a comment like this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="c1">// I’m so sorry that I had to implement a service locator. There was no other way. Forgive me!</span>
+</code></pre></div></div>
+
+<p>You might feel even better if you write this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="cm">/* Yes, this is a service locator. I’m not happy about it. But it wasn’t my idea to mangle 
+     * the composition root so thoroughly that it’s impossible to properly inject anything into 
+     * this third-level inherited god class, which by the way is also an anti-pattern. 
+     */</span>
+</code></pre></div></div>
+
+<p>A happier way to think about it is that you’re creating a new composition root from which to resolve your classes.</p>
+
+<p>How do we do it? The same way we would if were going to correctly configure and use a dependency injection container. We can start by creating a class that configures the container. <a href="/blog/2018/04/03/tame-your-dependency-injection-registration.html">This post</a> is largely devoted to that topic.</p>
+
+<p>For an example, using <a href="https://autofac.org/">Autofac</a>:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">ClassINeedToAddAutofacModule</span> <span class="p">:</span> <span class="n">Module</span>
+    <span class="p">{</span>
+        <span class="k">protected</span> <span class="k">override</span> <span class="k">void</span> <span class="nf">Load</span><span class="p">(</span><span class="n">ContainerBuilder</span> <span class="n">builder</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">builder</span><span class="p">.</span><span class="n">RegisterType</span><span class="p">&lt;</span><span class="n">ClassINeedToAddToTheMess</span><span class="p">&gt;().</span><span class="n">As</span><span class="p">&lt;</span><span class="n">IClassINeedToAddToTheMess</span><span class="p">&gt;();</span>
+            <span class="n">builder</span><span class="p">.</span><span class="n">RegisterType</span><span class="p">&lt;</span><span class="n">DependsOnThis</span><span class="p">&gt;().</span><span class="n">As</span><span class="p">&lt;</span><span class="n">IDependsOnThis</span><span class="p">&gt;();</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>Notice that it’s specific. We’re creating a single dependency for our unfortunate god class, so we’re limiting this to configuring that one dependency and its dependencies. As a bonus, this is reusable if the application ever gets refactored so that we can use a dependency injection container the way we’d like to.</p>
+
+<p>What if we need to register a dependency on something created by the god class? For example, the god class writes log data using a <a href="https://docs.microsoft.com/en-us/dotnet/api/microsoft.applicationinsights.telemetryclient?view=azure-dotnet"><code class="highlighter-rouge">TelemetryClient</code></a> it creates, but we don’t want our new classes coupled to <code class="highlighter-rouge">TelemetryClient</code>. We can work with that.</p>
+
+<p>First, we create the abstraction that we do want to depend on:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">interface</span> <span class="nc">ILogger</span>
+    <span class="p">{</span>
+        <span class="k">void</span> <span class="nf">LogException</span><span class="p">(</span><span class="n">Exception</span> <span class="n">ex</span><span class="p">);</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>Then we create an implementation that depends on <code class="highlighter-rouge">TelemetryClient</code>:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">TelemetryClientLogger</span> <span class="p">:</span> <span class="n">ILogger</span>
+    <span class="p">{</span>
+        <span class="k">private</span> <span class="k">readonly</span> <span class="n">TelemetryClient</span> <span class="n">_telemetryClient</span><span class="p">;</span>
+
+        <span class="k">public</span> <span class="nf">TelemetryClientLogger</span><span class="p">(</span><span class="n">TelemetryClient</span> <span class="n">telemetryClient</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">_telemetryClient</span> <span class="p">=</span> <span class="n">telemetryClient</span><span class="p">;</span>
+        <span class="p">}</span>
+
+        <span class="k">public</span> <span class="k">void</span> <span class="nf">LogException</span><span class="p">(</span><span class="n">Exception</span> <span class="n">ex</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">_telemetryClient</span><span class="p">.</span><span class="nf">TrackException</span><span class="p">(</span><span class="n">ex</span><span class="p">);</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>Then we modify our module so that it depends on an <code class="highlighter-rouge">ILogger</code>.</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">ClassINeedToAddAutofacModule</span> <span class="p">:</span> <span class="n">Module</span>
+    <span class="p">{</span>
+        <span class="k">private</span> <span class="k">readonly</span> <span class="n">ILogger</span> <span class="n">_logger</span><span class="p">;</span>
+
+        <span class="k">public</span> <span class="nf">DoesSomethingINeedAutofacModule</span><span class="p">(</span><span class="n">ILogger</span> <span class="n">logger</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">_logger</span> <span class="p">=</span> <span class="n">logger</span><span class="p">;</span>
+        <span class="p">}</span>
+
+        <span class="k">protected</span> <span class="k">override</span> <span class="k">void</span> <span class="nf">Load</span><span class="p">(</span><span class="n">ContainerBuilder</span> <span class="n">builder</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">builder</span><span class="p">.</span><span class="n">RegisterType</span><span class="p">&lt;</span><span class="n">ClassINeedToAddToTheMess</span><span class="p">&gt;().</span><span class="n">As</span><span class="p">&lt;</span><span class="n">IClassINeedToAddToTheMess</span><span class="p">&gt;();</span>
+            <span class="n">builder</span><span class="p">.</span><span class="n">RegisterType</span><span class="p">&lt;</span><span class="n">DependsOnThis</span><span class="p">&gt;().</span><span class="n">As</span><span class="p">&lt;</span><span class="n">IDependsOnThis</span><span class="p">&gt;();</span>
+            <span class="n">builder</span><span class="p">.</span><span class="nf">Register</span><span class="p">(</span><span class="n">c</span> <span class="p">=&gt;</span> <span class="n">_logger</span><span class="p">).</span><span class="n">As</span><span class="p">&lt;</span><span class="n">ILogger</span><span class="p">&gt;();</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>Now the classes created within our composition root can depend on the abstraction.</p>
+
+<h3 id="inserting-our-service-locator">Inserting Our Service Locator</h3>
+
+<p>This is the slightly distasteful part. Our service locator can be an instantiated class or a static class. It doesn’t really matter because either way it won’t be testable within the context of our god class. Remember, we’re not creating that problem. The idea is to inject dependencies instead of instantiating them, but the fact that we can’t is the reason why we’re going this route. The existing code might not be testable. We’re just doing our best to ensure that the <em>new</em> classes we integrate with it are composed and testable.</p>
+
+<p>Here is the service locator class. I considered calling it a “factory” because it sounds better, but let’s just call it what it is.</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">DoesSomethingINeedLocator</span>
+    <span class="p">{</span>
+        <span class="k">private</span> <span class="k">readonly</span> <span class="n">IContainer</span> <span class="n">_container</span><span class="p">;</span>
+
+        <span class="k">public</span> <span class="nf">DoesSomethingINeedLocator</span><span class="p">(</span><span class="n">ILogger</span> <span class="n">logger</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="kt">var</span> <span class="n">containerBuilder</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">ContainerBuilder</span><span class="p">();</span>
+            <span class="n">containerBuilder</span><span class="p">.</span><span class="nf">RegisterModule</span><span class="p">(</span><span class="k">new</span> <span class="nf">ClassINeedToAddAutofacModule</span><span class="p">(</span><span class="n">logger</span><span class="p">));</span>
+            <span class="n">_container</span> <span class="p">=</span> <span class="n">containerBuilder</span><span class="p">.</span><span class="nf">Build</span><span class="p">();</span>
+        <span class="p">}</span>
+
+        <span class="k">public</span> <span class="n">IDoesSomethingINeed</span> <span class="nf">Locate</span><span class="p">()</span>
+        <span class="p">{</span>
+            <span class="k">return</span> <span class="n">_container</span><span class="p">.</span><span class="n">Resolve</span><span class="p">&lt;</span><span class="n">IDoesSomethingINeed</span><span class="p">&gt;();</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>To make this a little less icky, the service locator explicitly returns only one type of dependency. There is no <code class="highlighter-rouge">Get&lt;TAnything&gt;()</code> function.</p>
+
+<p>Now the god class, which was already creating and using its own <code class="highlighter-rouge">TelemetryClient</code>, can call this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="kt">var</span> <span class="n">thingINeedLocator</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">DoesSomethingINeedLocator</span><span class="p">(</span><span class="n">_telemetryClientItAlreadyCreated</span><span class="p">);</span>
+    <span class="kt">var</span> <span class="n">thingINeed</span> <span class="p">=</span> <span class="n">thingINeedLocator</span><span class="p">.</span><span class="nf">Locate</span><span class="p">();</span>
+</code></pre></div></div>
+
+<p>Because we’re creating a class instance - calling <code class="highlighter-rouge">new</code> to instantiate a new object - we can’t mock this dependency, so the god class is less testable. The trade-off is that the classes it returns - all of the new stuff - use dependency injection, are testable, and don’t have any reference to the container.</p>
+
+<p>We want our composition root with all its references to the container to be at application startup, far away from the business end of application. Since we can’t, we’ve planted a new composition root where we need it and done our best to keep it tidy.</p>
+
+<h3 id="its-testable">It’s Testable</h3>
+
+<p>When we compose classes using a dependency injection container, we get a runtime error if we missed registering a dependency. We don’t need to run the application and wait for an exception to see if we’ve missed anything. We can write a unit test:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="p">[</span><span class="n">TestMethod</span><span class="p">]</span>
+    <span class="k">public</span> <span class="k">void</span> <span class="nf">AutofacModuleResolvesThingINeed</span><span class="p">()</span>
+    <span class="p">{</span>
+        <span class="kt">var</span> <span class="n">logger</span> <span class="p">=</span> <span class="k">new</span> <span class="n">Mock</span><span class="p">&lt;</span><span class="n">ILogger</span><span class="p">&gt;();</span>
+        <span class="kt">var</span> <span class="n">containerBuilder</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">ContainerBuilder</span><span class="p">();</span>
+        <span class="n">containerBuilder</span><span class="p">.</span><span class="nf">RegisterModule</span><span class="p">(</span><span class="k">new</span> <span class="nf">ClassINeedToAddAutofacModule</span><span class="p">(</span><span class="n">logger</span><span class="p">.</span><span class="n">Object</span><span class="p">));</span>
+        <span class="k">using</span> <span class="p">(</span><span class="kt">var</span> <span class="n">container</span> <span class="p">=</span> <span class="n">containerBuilder</span><span class="p">.</span><span class="nf">Build</span><span class="p">())</span>
+        <span class="p">{</span>
+            <span class="n">container</span><span class="p">.</span><span class="n">Resolve</span><span class="p">&lt;</span><span class="n">IClassINeedToAddToTheMess</span><span class="p">&gt;();</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<h3 id="is-it-worth-it">Is It Worth It?</h3>
+
+<p>If the new classes you need to create are complex and contain a lot of nested dependencies, then yes, it is.</p>
+
+<p>This approach is satisfying because it draws a line between the legacy code I’m working in and the new code I’m writing. The legacy classes don’t allow me to inject dependencies, but my new ones do. The service locator is the bridge between them. That lets me work the way I’m used to, creating small, testable classes that I can compose using a dependency injection container.</p>
+
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>

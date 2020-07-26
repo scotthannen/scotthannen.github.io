@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>The Dependency Inversion Principle For Beginners</title>
+    <meta name="description" content="The definition of the principle, from Robert Martin’s 1996 paper The Dependency Inversion Principle is this:">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2017/04/26/dependency-inversion-principle-for-beginners.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">The Dependency Inversion Principle For Beginners</h1>
+    <p class="post-meta"><time datetime="2017-04-26T07:20:58-04:00" itemprop="datePublished">Apr 26, 2017</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>The definition of the principle, from Robert Martin’s 1996 paper <a href="https://web.archive.org/web/20110714224327/http://www.objectmentor.com/resources/articles/dip.pdf">The Dependency Inversion Principle</a> is this:</p>
+
+<blockquote>
+  <p>A. HIGH LEVEL MODULES SHOULD NOT DEPEND UPON LOW LEVEL MODULES. BOTH SHOULD DEPEND UPON ABSTRACTIONS.<br />
+B. ABSTRACTIONS SHOULD NOT DEPEND UPON DETAILS. DETAILS SHOULD DEPEND UPON ABSTRACTIONS.</p>
+</blockquote>
+
+<p>What are high level modules? What are low level modules? What is a dependency and how do I invert one? Some of these questions will be answered.</p>
+
+<p>Dependency Inversion is not a language-specific concept and obviously predates the .NET Framework. This explanation, however, is .NET-centric.</p>
+
+<h4 id="what-is-a-dependency">What Is a Dependency?</h4>
+
+<p>A <em>dependency</em> is something - another class, or a value - that your class depends on, or requires. For example:</p>
+
+<ul>
+  <li>If a class requires some setting, it might call <code class="highlighter-rouge">ConfigurationManager.AppSettings["someSetting"]</code>. <code class="highlighter-rouge">ConfigurationManager</code> is a <em>dependency</em>. The class has a dependency on <code class="highlighter-rouge">ConfigurationManager</code>, which is the same thing in more words and the passive voice. But people say that.</li>
+  <li>If you write two classes - let’s say <code class="highlighter-rouge">Log</code> and <code class="highlighter-rouge">SqlLogWriter</code> - and <code class="highlighter-rouge">Log</code> creates or requires an instance of <code class="highlighter-rouge">SqlLogWriter</code>, then <code class="highlighter-rouge">Log</code> depends on <code class="highlighter-rouge">SqlLogWriter</code>. <code class="highlighter-rouge">SqlLogWriter</code> is a dependency.</li>
+</ul>
+
+<p>Did you know there was a word for that? For a while I didn’t. And without that word, I didn’t realize that those two scenarios have something in common, that both describe classes with dependencies. It’s eye-opening for me to reflect on how just acquiring a word influenced my perception and thinking.</p>
+
+<p>Until I saw that fundamental commonality - <em>I write classes that <strong>depend</strong> on other classes</em> - there was no way to grasp the common problems stemming from <em>how</em> I depended on other classes. I saw the results: My code was difficult to maintain. Unit testing was foreign because my dependencies made my code untestable, so I relied primarily on unreliable manual testing. The term <em>dependency</em> revealed the commonality, and the Dependency Inversion principle revealed a better way to manage dependencies.</p>
+
+<h4 id="what-are-high-level-modules-and-low-level-modules">What Are High Level Modules and Low Level Modules?</h4>
+
+<p>The first part of the definition mentions “high level modules” and “low level modules.” What are “modules?” It’s just a difference in terminology between C++ and C#. In C# we write classes. C++ also uses classes, but that’s beside the point. Forget modules and think about classes.</p>
+
+<p>The principle says that “both should depend on abstractions.” That means that when it comes to applying the principle, the difference between high level and low level doesn’t matter. Those terms mean something, but we can apply the principle without attempting to classify our classes as either high or low level. If you want to know more about those terms, Google them or read Robert Martin’s paper. But for now don’t worry about them. I don’t mean to trivialize it, but you can assign a lower priority to understanding those details.</p>
+
+<h4 id="what-are-abstractions">What Are Abstractions?</h4>
+
+<p>The principle states that we should “depend on abstractions.” Abstractions are generally interfaces, abstract classes, and delegates (in .NET terms.) We call it an “abstraction” because it’s an indirect representation of a concrete class or method. Interfaces are used most commonly. So for the sake of discussion, applying dependency inversion means that we <em>depend on interfaces.</em> (<a href="http://blog.ploeh.dk/2010/12/02/Interfacesarenotabstractions">This article</a> clarifies that interfaces are <em>not</em> abstractions, but abstractions are usually interfaces or sometimes base classes. I mention it to acknoweldge that I’m generalizing. Pretend that <em>interface</em> and <em>abstraction</em> are synonymous even though they’re not.)</p>
+
+<p>3/22/2018 - <a href="/blog/2018/03/18/depending-on-functions-instead-of-interfaces.html">This post</a> discusses the use of functions or delegates as abstractions.</p>
+
+<h4 id="how-do-we-apply-dependency-inversion">How Do We Apply Dependency Inversion?</h4>
+
+<p>Take the example of a class that depends on <code class="highlighter-rouge">AppSettings</code>:</p>
+
+<pre><code class="language-C#">public class ClassThatDependsOnSettings
+{
+    public void DoSomethingThatNeedsSettings()
+    {
+        var someSetting = ConfigurationManager.AppSettings["someSetting"];
+        var otherSetting = ConfigurationManager.AppSettings["otherSetting"];
+        CallSomeOtherMethod(someSetting, otherSetting);
+    }
+}
+</code></pre>
+
+<p>This class depends on <code class="highlighter-rouge">ConfigurationManager</code>. There must be a web.config or app.config or this class can’t work. Here’s what the same class might look like if it depends on abstraction - in other words, it depends on an interface instead of depending on <code class="highlighter-rouge">ConfigurationManager</code>.</p>
+
+<p>First, the interface:</p>
+
+<pre><code class="language-C#">public interface ISettings
+{
+    string SomeSetting { get; }
+    int OtherSetting { get; }
+}
+</code></pre>
+
+<p>Then the class:</p>
+
+<pre><code class="language-C#">/public class ClassThatDependsOnSettings
+{
+    private readonly ISettings _settings;
+
+    public ClassThatDependsOnSettings(ISettings settings)
+    {
+        _settings = settings;
+    }
+
+    public void DoSomethingThatNeedsSettings()
+    {
+        CallSomeOtherMethod(_settings.SomeSetting, _settings.OtherSetting);
+    }
+}
+</code></pre>
+
+<p>Our initial requirements haven’t changed - we still want to get our values from <code class="highlighter-rouge">AppSettings</code>, so we write an implementation of <code class="highlighter-rouge">ISettings</code> that does just that:</p>
+
+<pre><code class="language-C#">public class AppSettings : ISettings
+{
+    public string SomeSetting { get { return ConfigurationManager.AppSettings["someSetting"]; } }
+    public int OtherSetting { get { return int.Parse(ConfigurationManager.AppSettings["otherSetting"]); } }
+}
+</code></pre>
+
+<p>This second version applies the principle of Dependency Inversion because it depends on an abstraction - the <code class="highlighter-rouge">ISettings</code> interface. It’s a humble example and just a beginning.</p>
+
+<h4 id="why-does-it-matter">Why Does It Matter?</h4>
+
+<p>Now we can easily replace one implementation of <code class="highlighter-rouge">ISettings</code> with another. Our class doesn’t know or care because as far as it is concerned, the implementation of the interface doesn’t matter.</p>
+
+<p>Sooner or later we’re going to find that we want a class to use one dependency in one scenario and a different one in another scenario. Perhaps in some cases we want those settings to come from user input instead of <code class="highlighter-rouge">AppSettings</code>. So we might do something funky we regret later like putting weird arguments in our constructor or other methods like <code class="highlighter-rouge">useAppSettings</code> and branching within the code, or we create a duplicate version of the same class, or we try to solve the problem with inheritance. I’ve done all three and more.</p>
+
+<p>Some might call <a href="https://martinfowler.com/bliki/Yagni.html">YAGNI</a> on that. We’re planning for extensibility that we will likely never need. But if we intend to write unit tests for our classes then we already require that flexibility - sooner is now. We need to be able to test a class in isolation, not testing all of its dependencies at the same time. The example above is simple because the class only has one dependency. But what if our class has a few dependencies, and those have dependencies, and so on? If we haven’t applied Dependency Inversion then it’s impossible to test one class without also testing every class it depends on. That’s not really unit testing, and it defeats one of the benefits of unit testing, which is finding bugs quickly by testing <em>small units of code.</em> If we haven’t applied this principle then we likely haven’t written unit tests, and we may never have experienced the awesomeness of effortlessly finding and fixing a bug in a method that we wrote three minutes ago as opposed to building the whole car, turning the key, and debugging the whole thing from end to end. The time taken to write unit tests quickly pays for itself.</p>
+
+<p>Even in the simple example above, if we depend on <code class="highlighter-rouge">AppSettings</code>, how do we write unit tests to test our class with different settings? It’s impossible because we can’t have more than one version of an <code class="highlighter-rouge">AppSettings</code> key (unless we contort our code further to account for that.) But if we depend on an abstraction (interface) then we can use an implementation of our interface created just for testing purposes. For example:</p>
+
+<pre><code class="language-C#">public class TestScenarioOneSettings : ISettings
+{
+    public string SomeSetting { get { return "A"; } }
+    public int OtherSetting { get { return 3; } }
+}
+</code></pre>
+
+<p>There are different ways to create these “fake” dependencies. We can write simple classes like the one above, sometimes called <em>test doubles.</em> Tools like <a href="https://github.com/moq/moq4">Moq</a> provide easy ways to create implementations of interfaces with methods and properties that return predetermined results. That multiple versions of such frameworks are created and maintained for various languages underscores that many developers value unit testing with test doubles or mocks.</p>
+
+<p>Finally, Dependency Inversion is the D in <a href="http://deviq.com/solid">SOLID</a>, a set of established, tested principles that improve the quality and maintainability of our code. If this is the only one of those principles we apply we’ll still get some benefit. But applying one leads to applying the others. We see how much one helped so we examine another more closely. It also happens because these principles complement each other. For example, the Interface Segregation principle improves how we design the interfaces on which other classes depend. The Liskov Substitution principle ensures that our class can depend on an interface without “knowing” what the implementation is.</p>
+
+<h4 id="what-gets-inverted">What Gets Inverted?</h4>
+<p>You may find it useful or interesting trying to visualize what is getting inverted. But that’s just the name of the principle. The principle tells us to depend on abstractions, and that’s how we apply it. It doesn’t tell us to invert anything.</p>
+
+<p>In his paper, immediately after defining the Dependency Inversion principle, Robert Martin states,</p>
+
+<blockquote>
+  <p>One might question why I use the word “inversion”. Frankly, it is because more traditional software development methods, such as Structured Analysis and Design, tend to create software structures in which high level modules depend upon low level modules, and in which abstractions depend upon details.</p>
+</blockquote>
+
+<p>He was recommending that developers look at the way they traditionally structured their software and managed their dependencies, and invert it. To me this makes the name of the principle (not the principle itself) self-referential. Dependency Inversion is an inversion of not applying Dependency Inversion. (He’s Robert Martin, he wrote the awesome paper, and he gets to call it whatever the heck he wants whyever he wants. Plus if he called it something else it might not fit the SOLID acronym.)</p>
+
+<h4 id="other-resources">Other Resources</h4>
+<p>It’s my hope that you can Google “Dependency Inversion” and that, as a result of reading this, you’ll find more in-depth articles more accessible. You’ll also see how oversimplified my examples are.</p>
+
+<p>Some topics that follow Dependency Inversion are <a href="http://stackoverflow.com/questions/130794/what-is-dependency-injection">Dependency Injection</a> and <a href="http://stackoverflow.com/documentation/.net/5085/dependency-injection/17949/why-we-use-dependency-injection-containers-ioc-containers#t=201704280224154117753">Dependency Injection containers, also called IoC (Inversion of Control) containers</a>. It’s not the same as Dependency Inversion, but a way of implementing and managing it. (Both have the initials “DI” which breeds confusion.) My experience is that it’s difficult to learn the <em>how</em> and the <em>why</em> simultaneously. I recommend taking a leap of faith and starting with <em>how</em> to use an IoC container, and then the <em>why</em> will make sense faster.</p>
+
+<p>Dependency Injection is even built into ASP.NET Core. Prior to that if you wanted to use an IoC container in a web application you’d have to add a 3rd-party library like Castle Windsor, Unity, or others. Clearly many developers consider it an essential pattern.</p>
+
+<p>I also recommend reading all of the posts in <a href="http://blog.cleancoder.com/">Robert Martin’s blog</a>. This blog inspires me and makes we want to be a better developer. I haven’t yet adopted TDD (Test-Driven Development) as he advocates but I’m certain that I’m going to try it with serious intent.</p>
+
+<h4 id="diagrams">Diagrams?</h4>
+<p>This is one case where I’ll assert that diagrams don’t help. If someone’s mind is working to comprehend a new principle <em>and</em> unfamiliar terminology at once, a diagram may be just the straw that congnitively overloads the camel. Not only can they not mentally process the diagram, they may become <em>less</em> able to process what they’ve read than if they hadn’t seen the diagram. Maybe that’s just me. Maybe I’m lazy and I should try harder to follow the diagrams. Google “Dependency Inversion”, check out the diagrams found alongside the explanations, and judge for yourself.</p>
+
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>

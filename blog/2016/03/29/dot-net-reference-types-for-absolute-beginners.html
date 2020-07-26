@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>.NET Reference Types for Absolute Beginners</title>
+    <meta name="description" content="I was recently trying to answer a question on stackoverflow.com for someone just attempting to understand the basics of how reference types behave. I looked ...">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2016/03/29/dot-net-reference-types-for-absolute-beginners.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">.NET Reference Types for Absolute Beginners</h1>
+    <p class="post-meta"><time datetime="2016-03-29T07:20:58-04:00" itemprop="datePublished">Mar 29, 2016</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>I was recently trying to answer a question on <a href="http://stackoverflow.com">stackoverflow.com</a> for someone just attempting to understand the basics of how reference types behave. I looked for a blog post to point them to, but many start off with the heap and stacks and boxing, and they always try to explain value types in the same post. Those are all important things to understand, but I don’t think it’s necessary to throw the kitchen sink at someone trying to grasp a basic concept. Would you like a marble? Here, it’s in this kitchen sink. Catch!</p>
+
+<h2 id="what-are-reference-types">What Are Reference Types?</h2>
+
+<p>For the purposes of this post, reference types are every class except for these:</p>
+
+<p><code class="highlighter-rouge">bool, byte, char, decimal, double, enum, float, int, long, sbyte, short, struct, uint, ulong, ushort</code></p>
+
+<p>Reference types are every other class in the .NET Framework and any class anyone creates. (But not <code class="highlighter-rouge">struct</code>s.)</p>
+
+<h2 id="examples---theyre-better-than-explanations">Examples - They’re Better Than Explanations</h2>
+
+<p>Here’s a simple class:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">Foo</span>
+    <span class="p">{</span>
+        <span class="k">public</span> <span class="kt">int</span> <span class="n">FooValue</span> <span class="p">{</span> <span class="k">get</span><span class="p">;</span> <span class="k">set</span><span class="p">;}</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<p>When we do this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="kt">var</span> <span class="n">myFoo</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">Foo</span><span class="p">();</span>
+</code></pre></div></div>
+
+<p>We are creating a new object, an <em>instance</em> of <code class="highlighter-rouge">Foo</code>. The variable <code class="highlighter-rouge">myFoo</code> refers to that object, that <code class="highlighter-rouge">Foo</code>.</p>
+
+<p>This creates a new variable:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="kt">var</span> <span class="n">myOtherFoo</span> <span class="p">=</span> <span class="n">myFoo</span><span class="p">;</span>
+</code></pre></div></div>
+
+<p>but it doesn’t create a new <code class="highlighter-rouge">Foo</code>. The new variable refers to the same object, the same <code class="highlighter-rouge">Foo</code>, as <code class="highlighter-rouge">myFoo</code>. That’s why if we do this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="n">myFoo</span><span class="p">.</span><span class="n">FooValue</span> <span class="p">=</span> <span class="m">5</span>
+</code></pre></div></div>
+
+<p>then this is also true:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="n">myOtherFoo</span><span class="p">.</span><span class="n">FooValue</span> <span class="p">==</span> <span class="m">5</span>
+</code></pre></div></div>
+
+<p>Now if we do this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="n">myFoo</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">Foo</span><span class="p">();</span>
+</code></pre></div></div>
+
+<p>or this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="n">myFoo</span> <span class="p">=</span> <span class="k">null</span>
+</code></pre></div></div>
+
+<p>what happens to <code class="highlighter-rouge">myOtherFoo</code>? Nothing at all. It still equals the same <code class="highlighter-rouge">Foo</code>. All we’ve done is change what object <code class="highlighter-rouge">myFoo</code> points to. It points to a new <code class="highlighter-rouge">Foo</code>, or it points to nothing at all (<code class="highlighter-rouge">null</code>.)</p>
+
+<p>That’s why it’s called a “reference” type. The object exists in memory, and variables and properties <em>refer</em> to it.</p>
+
+<p>To illustrate this another way:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="kt">var</span> <span class="n">fooList</span> <span class="p">=</span> <span class="k">new</span> <span class="n">List</span><span class="p">&lt;</span><span class="n">Foo</span><span class="p">&gt;();</span>
+    <span class="kt">var</span> <span class="n">myFoo</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">Foo</span><span class="p">();</span>
+    <span class="n">fooList</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="n">myFoo</span><span class="p">);</span>
+    <span class="n">fooList</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="n">myFoo</span><span class="p">);</span>
+    <span class="n">fooList</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="n">myFoo</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>How many items are in <code class="highlighter-rouge">FooList</code>? Three. How many instances of <code class="highlighter-rouge">Foo</code> are there? One. The list contains three <em>references</em> to the same object.</p>
+
+<p>The list is also an object. So if we do this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="kt">var</span> <span class="n">otherFooList</span> <span class="p">=</span> <span class="n">fooList</span><span class="p">;</span>
+    <span class="n">otherFooList</span><span class="p">.</span><span class="nf">Clear</span><span class="p">();</span>
+</code></pre></div></div>
+
+<p>Then both <code class="highlighter-rouge">fooList</code> and <code class="highlighter-rouge">otherFooList</code> both refer to the same list. There’s only one list, and we’ve just cleared it.</p>
+
+<h2 id="a-few-more-concepts">A Few More Concepts</h2>
+
+<h3 id="variables-that-reference-objects-can-be-null">Variables That Reference Objects Can Be Null</h3>
+
+<p>Here are a few things that will cause exceptions.</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="kt">var</span> <span class="n">foo1</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">Foo</span><span class="p">();</span>
+    <span class="n">foo1</span> <span class="p">=</span> <span class="k">null</span><span class="p">;</span>
+    <span class="kt">var</span> <span class="k">value</span> <span class="p">=</span> <span class="n">foo1</span><span class="p">.</span><span class="n">FooValue</span><span class="p">;</span> <span class="c1">//Exception!</span>
+
+    <span class="kt">var</span> <span class="n">fooList</span> <span class="p">=</span> <span class="k">new</span> <span class="n">List</span><span class="p">&lt;</span><span class="n">Foo</span><span class="p">&gt;();</span>
+    <span class="kt">var</span> <span class="n">foo2</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">Foo</span><span class="p">();</span>
+    <span class="n">fooList</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="n">foo1</span><span class="p">);</span>
+    <span class="n">fooList</span><span class="p">.</span><span class="nf">Add</span><span class="p">(</span><span class="n">foo2</span><span class="p">);</span>
+    <span class="kt">var</span> <span class="n">value2</span> <span class="p">=</span> <span class="n">fooList</span><span class="p">[</span><span class="m">0</span><span class="p">].</span><span class="n">FooValue</span><span class="p">;</span> <span class="c1">//Exception!</span>
+
+    <span class="n">Foo</span> <span class="n">foo3</span><span class="p">;</span> <span class="c1">//It's null because we haven't set a value.</span>
+    <span class="kt">var</span> <span class="n">value3</span> <span class="p">=</span> <span class="n">foo3</span><span class="p">.</span><span class="n">FooValue</span><span class="p">;</span> <span class="c1">//Exception!    </span>
+</code></pre></div></div>
+
+<p>Those three statements will each throw a <code class="highlighter-rouge">NullReferenceException</code>. Why? Because we can’t check the <code class="highlighter-rouge">.FooValue</code> property of <code class="highlighter-rouge">null</code>. A <code class="highlighter-rouge">NullReferenceException</code> happens when we expect a variable to refer to something when it’s actually <code class="highlighter-rouge">null</code>.</p>
+
+<h3 id="this-also-applies-to-properties-and-values-returned-from-functions">This Also Applies to Properties and Values Returned From Functions</h3>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">Bar</span>
+    <span class="p">{</span>
+        <span class="k">public</span> <span class="n">Foo</span> <span class="n">BarFoo</span> <span class="p">{</span> <span class="k">get</span><span class="p">;</span> <span class="k">set</span><span class="p">;}</span>
+    <span class="p">}</span>
+
+    <span class="kt">var</span> <span class="n">myBar</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">Bar</span><span class="p">();</span>
+    <span class="n">myBar</span><span class="p">.</span><span class="n">BarFoo</span><span class="p">.</span><span class="n">FooValue</span> <span class="p">=</span> <span class="m">10</span><span class="p">;</span> <span class="c1">//Exception!</span>
+
+    <span class="n">myBar</span><span class="p">.</span><span class="n">BarFoo</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">Foo</span><span class="p">();</span>
+    <span class="n">myBar</span><span class="p">.</span><span class="n">BarFoo</span><span class="p">.</span><span class="n">FooValue</span> <span class="p">=</span> <span class="m">10</span><span class="p">;</span> <span class="c1">//OK</span>
+</code></pre></div></div>
+
+<p>Also, if a function returns a reference type, what it returns can either be an object or it can be <code class="highlighter-rouge">null</code>.</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">class</span> <span class="nc">FooProvider</span>
+    <span class="p">{</span>
+        <span class="n">Foo</span> <span class="nf">GetFoo</span><span class="p">(</span><span class="kt">bool</span> <span class="n">returnNull</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="k">if</span><span class="p">(</span><span class="n">returnNull</span><span class="p">)</span> <span class="k">return</span> <span class="k">null</span><span class="p">;</span>
+            <span class="k">return</span> <span class="k">new</span> <span class="nf">Foo</span><span class="p">();</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="kt">var</span> <span class="n">provider</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">FooProvider</span><span class="p">();</span>
+    <span class="kt">var</span> <span class="n">foo1</span> <span class="p">=</span> <span class="n">provider</span><span class="p">.</span><span class="nf">GetFoo</span><span class="p">(</span><span class="k">false</span><span class="p">);</span>
+    <span class="kt">var</span> <span class="n">foo2</span> <span class="p">=</span> <span class="n">provider</span><span class="p">.</span><span class="nf">GetFoo</span><span class="p">(</span><span class="k">true</span><span class="p">);</span>
+    <span class="n">foo1</span><span class="p">.</span><span class="n">FooValue</span> <span class="p">=</span> <span class="m">1</span><span class="p">;</span> <span class="c1">//OK</span>
+    <span class="n">foo2</span><span class="p">.</span><span class="n">FooValue</span> <span class="p">=</span> <span class="m">2</span><span class="p">;</span> <span class="c1">//Exception!</span>
+</code></pre></div></div>
+
+<p>In other words, <em>anything</em> that can refer to a reference type can potentially be <code class="highlighter-rouge">null</code>. When we write classes and functions it’s often helpful to be sure that properties and values returned from functions are never <code class="highlighter-rouge">null</code>, or we know exactly when they might be <code class="highlighter-rouge">null</code>. That way we don’t have to constantly check to see if values are <code class="highlighter-rouge">null</code>. How do we check that?</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">if</span><span class="p">(</span><span class="n">foo1</span><span class="p">==</span><span class="k">null</span><span class="p">){</span>
+        <span class="c1">//It's null.</span>
+    <span class="p">}</span>
+
+    <span class="k">if</span><span class="p">(</span><span class="n">foo1</span><span class="p">!=</span><span class="k">null</span><span class="p">){</span>
+        <span class="c1">//It's not null.</span>
+    <span class="p">}</span>
+</code></pre></div></div>
+
+<h3 id="functions-cant-change-the-values-of-our-variables-unless-we-let-them">Functions Can’t Change The Values of Our Variables (Unless We Let Them)</h3>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">FooUpdater</span>
+    <span class="p">{</span>
+        <span class="k">public</span> <span class="k">void</span> <span class="nf">UpdateFoo</span><span class="p">(</span><span class="n">Foo</span> <span class="n">fooToUpdate</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">fooToUpdate</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">Foo</span><span class="p">();</span>
+            <span class="n">fooToUpdate</span><span class="p">.</span><span class="n">FooValue</span> <span class="p">=</span> <span class="m">0</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="kt">var</span> <span class="n">foo</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">Foo</span><span class="p">();</span>
+    <span class="n">foo</span><span class="p">.</span><span class="n">FooValue</span> <span class="p">=</span> <span class="m">3</span><span class="p">;</span>
+    <span class="kt">var</span> <span class="n">updater</span> <span class="p">=</span> <span class="k">new</span> <span class="n">FooUpdater</span><span class="p">;</span>
+    <span class="n">updater</span><span class="p">.</span><span class="nf">UpdateFoo</span><span class="p">(</span><span class="n">foo</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>What is the value of <code class="highlighter-rouge">foo.FooValue</code>? It’s still <code class="highlighter-rouge">3</code>. Why? Because when we pass <code class="highlighter-rouge">foo</code> as a parameter to <code class="highlighter-rouge">UpdateFoo</code> it actually creates a new variable, <code class="highlighter-rouge">fooToUpdate</code>, which refers to the same <code class="highlighter-rouge">Foo</code>. But as soon as we said <code class="highlighter-rouge">fooToUpdate = new Foo();</code>, <code class="highlighter-rouge">fooToUpdate</code> no longer referred to the same <code class="highlighter-rouge">Foo</code>. It referred to a new one. If we changed it to this:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="k">public</span> <span class="k">void</span> <span class="nf">UpdateFoo</span><span class="p">(</span><span class="n">Foo</span> <span class="n">fooToUpdate</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">fooToUpdate</span><span class="p">.</span><span class="n">FooValue</span> <span class="p">=</span> <span class="m">0</span><span class="p">;</span>
+        <span class="p">}</span>
+</code></pre></div></div>
+
+<p>then <code class="highlighter-rouge">UpdateFoo</code> isn’t creating a new <code class="highlighter-rouge">Foo</code>. It’s setting the property on the existing one.</p>
+
+<p>If we add the <code class="highlighter-rouge">ref</code> keyword to the function then the function can modify the variable that was passed into it.</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="k">public</span> <span class="k">class</span> <span class="nc">FooUpdater</span>
+    <span class="p">{</span>
+        <span class="k">public</span> <span class="k">void</span> <span class="nf">UpdateFoo</span><span class="p">(</span><span class="k">ref</span> <span class="n">Foo</span> <span class="n">fooToUpdate</span><span class="p">)</span>
+        <span class="p">{</span>
+            <span class="n">fooToUpdate</span> <span class="p">=</span> <span class="k">null</span><span class="p">;</span>
+        <span class="p">}</span>
+    <span class="p">}</span>
+
+    <span class="kt">var</span> <span class="n">foo</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">Foo</span><span class="p">();</span>
+    <span class="kt">var</span> <span class="n">updater</span> <span class="p">=</span> <span class="k">new</span> <span class="n">FooUpdater</span><span class="p">;</span>
+    <span class="n">updater</span><span class="p">.</span><span class="nf">UpdateFoo</span><span class="p">(</span><span class="k">ref</span> <span class="n">foo</span><span class="p">);</span> <span class="c1">//Now foo is null.</span>
+</code></pre></div></div>
+
+<p>That’s not something we do too often. But in this case, because the function uses the <code class="highlighter-rouge">ref</code> keyword, it can change what <code class="highlighter-rouge">foo</code> references, in this case setting it to <code class="highlighter-rouge">null</code>.</p>
+
+<h3 id="its-all-different-with-value-types">It’s All Different With Value Types</h3>
+
+<p><code class="highlighter-rouge">bool, byte, char, decimal, double, enum, float, int, long, sbyte, short, struct, uint, ulong, ushort</code></p>
+
+<p>These are the value types, and they don’t behave the same way. But hopefully leaving them out of this has made this explanation a little easier to absorb.</p>
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>
