@@ -5,9 +5,149 @@
     <description>Scott Hannen is a software development consultant specializing in improving the quality of code.</description>
     <link>http://scotthannen.org/</link>
     <atom:link href="http://scotthannen.org/feed.xml" rel="self" type="application/rss+xml"/>
-    <pubDate>Mon, 06 Jul 2020 17:21:53 -0400</pubDate>
-    <lastBuildDate>Mon, 06 Jul 2020 17:21:53 -0400</lastBuildDate>
+    <pubDate>Sun, 26 Jul 2020 12:26:20 -0400</pubDate>
+    <lastBuildDate>Sun, 26 Jul 2020 12:26:20 -0400</lastBuildDate>
     <generator>Jekyll v3.8.5</generator>
+    
+      <item>
+        <title>Sometimes It's Easier to Mock Without Moq</title>
+        <description>&lt;p&gt;I like &lt;a href=&quot;https://github.com/Moq/moq4/wiki/Quickstart&quot;&gt;Moq&lt;/a&gt;. It’s easy to use and it’s used frequently enough
+that developers are familiar with it. But sometimes there’s an even easier way to write tests, and that
+involves creating classes that mock interfaces.&lt;/p&gt;
+
+&lt;p&gt;As an example (I’ll try not to convolute this) suppose we have a class that&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;listens to messages from a queue&lt;/li&gt;
+  &lt;li&gt;reads the contents of the message and converts it into a command&lt;/li&gt;
+  &lt;li&gt;invokes a command handler&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;I want to write a test to verify that given a message with specific contents,
+the command sent to the command handler has the expected properties.&lt;/p&gt;
+
+&lt;p&gt;Here’s what that test might look like using Moq:
+)&lt;/p&gt;
+
+&lt;div class=&quot;language-csharp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;na&quot;&gt;[TestMethod]&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;async&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;CommandHandlerInvokedWithCorrectCommand&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;commandHandlerMock&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Mock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;ICommandHandler&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;DoSomethingCommand&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&amp;gt;();&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;DoSomethingCommand&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;handledCommand&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;commandHandlerMock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;Setup&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;x&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&amp;gt;&lt;/span&gt;
+            &lt;span class=&quot;n&quot;&gt;x&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;HandleCommandAsync&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;It&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;IsAny&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;DoSomethingCommand&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;()))&lt;/span&gt;
+        &lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Callback&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;DoSomethingCommand&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;command&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;handledCommand&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;command&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;subject&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;MessageListener&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;commandHandlerMock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;Object&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;message&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;CreateMessage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;X&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;await&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;subject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;ReceiveMessage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;message&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+
+    &lt;span class=&quot;n&quot;&gt;Assert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;IsTrue&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;handledCommand&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;SomeProperty&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;x&quot;&lt;/span&gt;
+                  &lt;span class=&quot;p&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;handledCommand&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;SomeOtherProperty&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;In case you haven’t used this, here’s what we’re doing:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Using Moq to create a &lt;code class=&quot;highlighter-rouge&quot;&gt;Mock&amp;lt;ICommandHandler&amp;lt;DoSomethingCommand&amp;gt;&amp;gt;&lt;/code&gt;&lt;/li&gt;
+  &lt;li&gt;Setting up the mock so that when &lt;code class=&quot;highlighter-rouge&quot;&gt;HandleCommandAsync&lt;/code&gt; is called,
+it executes a callback that assigns the &lt;code class=&quot;highlighter-rouge&quot;&gt;DoSomethingCommand&lt;/code&gt; parameter
+passed to the command handler to the &lt;code class=&quot;highlighter-rouge&quot;&gt;handledCommand&lt;/code&gt; variable so that
+we can inspect the command that was sent to the handler.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;This isn’t bad. I’ve written it a bunch of times, and developers who’ve
+used Moq know what it means. But can we make it a little simpler?
+Judge for yourself.&lt;/p&gt;
+
+&lt;p&gt;In the time it takes me to set up that mock, I can create this class:&lt;/p&gt;
+
+&lt;div class=&quot;language-csharp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;class&lt;/span&gt; &lt;span class=&quot;nc&quot;&gt;MockCommandHandler&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;ICommandHandler&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;T&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;HandledCommand&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;get&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;private&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;set&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+
+    &lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;async&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;HandleCommandAsync&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;command&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+        &lt;span class=&quot;n&quot;&gt;HandledCommand&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;command&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;That took seconds. What does it do for the unit test?
+I think it’s an improvement.&lt;/p&gt;
+
+&lt;div class=&quot;language-csharp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;na&quot;&gt;[TestMethod]&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;async&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;CommandHandlerInvokedWithCorrectCommand&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;commandHandler&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;MockCommandHandler&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;DoSomethingCommand&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;();&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;subject&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;MessageListener&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;commandHandler&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;message&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;CreateMessage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;X&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;await&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;subject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;ReceiveMessage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;message&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;handledCommand&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;commandHandler&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;HandledCommand&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;Assert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;IsTrue&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;handledCommand&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;SomeProperty&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;x&quot;&lt;/span&gt;
+                  &lt;span class=&quot;p&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;handledCommand&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;SomeOtherProperty&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Isn’t that easier to read? It’s undeniably shorter. And I can reuse that
+mock command handler in other tests. It also makes a difference if a
+test necessarily sets up more dependencies. We want to keep our tests as
+short and easy to read as possible.&lt;/p&gt;
+
+&lt;h3 id=&quot;the-wall-of-moq&quot;&gt;The Wall of Moq&lt;/h3&gt;
+
+&lt;p&gt;As a side note, sometimes if classes have too many dependencies we declare
+a bunch of Moq mocks as private variables in our tests followed by lots of initialization code that
+instantiates them and sets them up, and still individual tests have to do different setup for some of them.
+All we see when we open the file is Moq.&lt;/p&gt;
+
+&lt;p&gt;That’s not a Moq problem - it’s a problem with the classes we’re testing. They
+have too many dependencies. Anyway, I don’t like it. I call it “the Wall of Moq.”
+It makes tests difficult to read. We’ll see mocks set up with behaviors they don’t
+need because no one can keep track of which ones are needed for any one test.
+Once that happens we can no longer understand either the tests or the code
+we’re testing.&lt;/p&gt;
+
+&lt;h3 id=&quot;its-really-easy-with-delegates&quot;&gt;It’s Really Easy With Delegates&lt;/h3&gt;
+
+&lt;p&gt;What if instead of an &lt;code class=&quot;highlighter-rouge&quot;&gt;ICommandHandler&amp;lt;T&amp;gt;&lt;/code&gt; interface we have a delegate,
+and we inject that into our class? (More on that &lt;a href=&quot;/blog/2018/03/18/depending-on-functions-instead-of-interfaces.html&quot;&gt;here&lt;/a&gt;).&lt;/p&gt;
+
+&lt;p&gt;If we inject this delegate into our message listener instead of an interface:&lt;/p&gt;
+
+&lt;div class=&quot;language-csharp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;delegate&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;CommandHandler&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;lt;&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;&amp;gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;T&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;command&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;…then we can use a local method as our mock:&lt;/p&gt;
+
+&lt;div class=&quot;language-csharp highlighter-rouge&quot;&gt;&lt;div class=&quot;highlight&quot;&gt;&lt;pre class=&quot;highlight&quot;&gt;&lt;code&gt;&lt;span class=&quot;na&quot;&gt;[TestMethod]&lt;/span&gt;
+&lt;span class=&quot;k&quot;&gt;public&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;async&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;CommandHandlerInvokedWithCorrectCommand&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;()&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;{&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;DoSomethingCommand&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;handledCommand&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;null&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;async&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;Task&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;CommandHandlerMock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;DoSomethingCommand&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;command&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;)&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;handledCommand&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;command&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;;&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;subject&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;new&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;MessageListener&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;CommandHandlerMock&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;kt&quot;&gt;var&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;message&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;nf&quot;&gt;CreateMessage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&quot;X&quot;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;k&quot;&gt;await&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;subject&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;ReceiveMessage&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;message&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+    &lt;span class=&quot;n&quot;&gt;Assert&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;nf&quot;&gt;IsTrue&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;(&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;handledCommand&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;SomeProperty&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;s&quot;&gt;&quot;x&quot;&lt;/span&gt;
+                  &lt;span class=&quot;p&quot;&gt;&amp;amp;&amp;amp;&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;handledCommand&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;SomeOtherProperty&lt;/span&gt; &lt;span class=&quot;p&quot;&gt;==&lt;/span&gt; &lt;span class=&quot;m&quot;&gt;2&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;);&lt;/span&gt;
+&lt;span class=&quot;p&quot;&gt;}&lt;/span&gt;
+&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;&lt;/div&gt;
+
+&lt;p&gt;Now we don’t have to declare a separate &lt;code class=&quot;highlighter-rouge&quot;&gt;MockCommandHandler&lt;/code&gt;, and
+we can still declare and set up the mock in a single succint line.&lt;/p&gt;
+
+&lt;p&gt;It’s not a huge difference, but these alternatives will save us some typing,
+make it easier to reuse code in our tests, and keep our tests a little bit
+easier to read. And if I’m just mocking a method that returns something
+I’ll still use Moq.&lt;/p&gt;
+
+</description>
+        <pubDate>Fri, 10 Jul 2020 00:00:00 -0400</pubDate>
+        <link>http://scotthannen.org/blog/2020/07/10/easier-to-mock-without-moq.html</link>
+        <guid isPermaLink="true">http://scotthannen.org/blog/2020/07/10/easier-to-mock-without-moq.html</guid>
+        
+        
+        <category>blog</category>
+        
+      </item>
     
       <item>
         <title>Pragmatism, Perfectionism, and Static Code Analysis</title>
@@ -21,7 +161,7 @@
 &lt;h2 id=&quot;pragmatism&quot;&gt;“Pragmatism”&lt;/h2&gt;
 &lt;p&gt;Pragmatism is good, right? It means to value what is practical over what is theoretical. Unfortunately 
 that word is often used to mean, “I do what makes sense to me and don’t waste time learning to improve.”
-It amounts to taking whatever we don’t want to learn or do and labeling it “theoretical” so that we 
+It amounts to taking whatever we don’t want to learn or do and labeling it “theoretical” so we 
 can ignore it.&lt;/p&gt;
 
 &lt;p&gt;That’s harsh, but I’ll go a step further. I’m going to guess that most developers who call themselves
@@ -43,7 +183,7 @@ It’s also subjective. One developer says a class is large and confusing. But h
 
 &lt;p&gt;It’s also a miserable experience for everyone involved. Even if I agree in principle with adhering to 
 exacting standards, I wouldn’t want to be on either side of that code review. I don’t want someone pointing 
-out 20 minor issues to me, and then five more than I introduce by fixing those 20.&lt;/p&gt;
+out 20 minor issues to me, and then five more that I introduce by fixing those 20.&lt;/p&gt;
 
 &lt;p&gt;The only thing worse is being the reviewer who finds and highlights those issues. I don’t know about
 you, but I don’t have it in me to point out every single potential flaw I see, no matter how small.
@@ -418,7 +558,7 @@ I’ll apply the adapter pattern so that I can implement this interface without 
 if I break it up into intermediate steps the next person will be able to understand it quickly.&lt;/p&gt;
 &lt;/blockquote&gt;
 
-&lt;p&gt;If we understand the reasoning behind other then those principles may be sufficient justification.&lt;/p&gt;
+&lt;p&gt;If our reason is a principle that we understand then citing the principle may be sufficient explanation.&lt;/p&gt;
 
 &lt;blockquote&gt;
   &lt;p&gt;I understand how violating the Single Responsibility Principle creates problems later that might not seem
@@ -445,7 +585,7 @@ or future developers will be confused.&lt;/p&gt;
 &lt;/blockquote&gt;
 
 &lt;p&gt;(Give future developers a little credit. They’ll be confused because we &lt;em&gt;did&lt;/em&gt; something that made no sense,
-not because we didn’t.)&lt;/p&gt;
+not because we &lt;em&gt;didn’t&lt;/em&gt;.)&lt;/p&gt;
 
 &lt;p&gt;If we use MediatR it should pass that test. We should be able to explain in our own words what complex interactions it simplified.
 Does it reduce coupling? Was adding MediatR really the only way to prevent that coupling?&lt;/p&gt;
@@ -1841,69 +1981,6 @@ A container helps you to create instances of those dependencies.&lt;/p&gt;
         <pubDate>Tue, 27 Nov 2018 04:20:58 -0500</pubDate>
         <link>http://scotthannen.org/blog/2018/11/27/stop-worrying-love-service-locator.html</link>
         <guid isPermaLink="true">http://scotthannen.org/blog/2018/11/27/stop-worrying-love-service-locator.html</guid>
-        
-        
-        <category>blog</category>
-        
-      </item>
-    
-      <item>
-        <title>Invalid Reasons for Ignoring Code Metrics and Analytics</title>
-        <description>&lt;p&gt;Here’s an embarrassing but true story: For the first several years that I developed using .NET I wrote code exclusively in VB.NET. I can’t tell you how many things I googled twice.&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;httprequest add authentication headers .NET&lt;/code&gt;&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;…read a few results…&lt;/p&gt;
-
-&lt;blockquote&gt;
-  &lt;p&gt;&lt;code class=&quot;highlighter-rouge&quot;&gt;vb.net httprequest add authentication headers&lt;/code&gt;&lt;/p&gt;
-&lt;/blockquote&gt;
-
-&lt;p&gt;One day I checked out a new app someone was working on and saw that he had written it in C#, with braces and semicolons all over the place. My initial response was reactionary. &lt;em&gt;We’ve always used VB.NET! It can do whatever C# can! The change will slow us down! We should all discuss this first!&lt;/em&gt;&lt;/p&gt;
-
-&lt;p&gt;At first I was ready to go to war, but I quickly realized that win or lose, I was on the wrong side. If I somehow won that battle, the prize would be &lt;em&gt;not&lt;/em&gt; learning C#. How is that going to look on my resume? So I flipped and immediately started struggling to write new code in C#. Within a week I was over the hump, and within two I never wanted to go back.&lt;/p&gt;
-
-&lt;p&gt;This illustrates that when we don’t want to do something new or different we can often find reasons not to, even if they are weak or factually inaccurate.&lt;/p&gt;
-
-&lt;p&gt;That brings us to code metrics and static analysis. Just like I didn’t want to switch from VB.NET to C#, we may have lame reasons why we shouldn’t generate or care about metrics that measure aspects of our code, like lines per method, methods per interface, test coverage, or cyclomatic complexity.&lt;/p&gt;
-
-&lt;p&gt;Here are a few:&lt;/p&gt;
-
-&lt;h3 id=&quot;1-you-shouldnt-use-code-metrics-to-manage-developers&quot;&gt;1. You shouldn’t use code metrics to manage developers&lt;/h3&gt;
-&lt;p&gt;Correct. Code metrics and analysis are developer tools. As developers we use countless tools on our own initiative. These tools are no different.&lt;/p&gt;
-
-&lt;h3 id=&quot;2-ive-never-heard-of-them&quot;&gt;2. I’ve never heard of them&lt;/h3&gt;
-&lt;p&gt;I hadn’t heard of them for a long time either. But now you’ve read this far and you’ve heard of them. You can’t unknow it. Boom shakalaka!&lt;/p&gt;
-
-&lt;h3 id=&quot;3-the-only-metric-that-matters-is-the-value-you-deliver&quot;&gt;3. The only metric that matters is the value you deliver&lt;/h3&gt;
-&lt;p&gt;Forgive me for being blunt, but this reasoning is based on profound and perhaps willing ignorance of factors that impact the delivery of software. It’s like saying that the only automobile “metrics” that matter are miles traveled and resale value, so we shouldn’t pay attention to numbers like tire pressure, engine temperature, and miles since the last oil change. Is that sound thinking? If we don’t check our tire pressure or keep track of our oil changes, aren’t we putting the ‘only metrics that matter’ at risk?&lt;/p&gt;
-
-&lt;p&gt;This relates to the value of our code in two ways. First, if the value that matters is provided by delivering new features with minimal defects, don’t we want to know about problems in our code that might cause us to deliver that value at an exponentially slowing velocity and with more defects? Analyzing metrics isn’t to detract from the significance of delivered value - it’s to ensure that we keep delivering more of it. Achieving a business goal at the cost of increasingly impeding each subsequent achievement is not delivering value.&lt;/p&gt;
-
-&lt;p&gt;Second, software must be maintained, likely by someone who comes after us. Isn’t the maintainability of our software a large part of its value? I hope so.&lt;/p&gt;
-
-&lt;p&gt;I’m not saying that metrics and analysis are the only way to ensure that we provide value by delivering maintainable code. Rather, the argument that code metrics are somehow at odds with delivering value is ignorant and fallacious. It is the &lt;a href=&quot;https://daedtech.com/how-stagnation-is-justified-language-of-the-expert-beginner/&quot;&gt;language of the Expert Beginner&lt;/a&gt;.&lt;/p&gt;
-
-&lt;h3 id=&quot;4-code-metrics-are-not-predictive&quot;&gt;4. Code metrics are not predictive&lt;/h3&gt;
-&lt;p&gt;The purpose of metrics and analysis is not to predict defects. They measure factors which indicate the maintainability of code. Large, incohesive classes and long methods with high cyclomatic complexity are inherently harder to read and understand. They are harder to unit test which means that more time is spent on manual end-to-end tests. Modifications take longer, and, in my experience, are more likely to produce new defects.&lt;/p&gt;
-
-&lt;p&gt;There’s an easy way to test, though. Run the Visual Studio metrics or use a static analyzer. Look at whichever classes or methods it indicates are excessively complex. Do you want to make significant changes to them, or even small ones? If not then the analysis has successfully identifed an area for potential improvement.&lt;/p&gt;
-
-&lt;h3 id=&quot;5-each-component-is-a-snowflake&quot;&gt;5. Each component is a snowflake&lt;/h3&gt;
-&lt;p&gt;It’s been said that each unit of software is unique, and it follows that no one metric can perfectly measure them all. That’s true. There’s no one blood pressure measurement that’s perfect for every person but we still get it checked. There’s obviously no perfect number of lines of code for every method or number of methods for a class, but if our snowflake has twenty public methods and two thousand lines of code it’s a hailstone.&lt;/p&gt;
-
-&lt;h3 id=&quot;6-different-tools-measure-cyclomatic-complexity-differently&quot;&gt;6. Different tools measure cyclomatic complexity differently&lt;/h3&gt;
-&lt;p&gt;True, but the difference is usually insignificant. The speedometers on our cars are only 95-99% accurate, but if they say we’re going 120mph we usually slow down.&lt;/p&gt;
-
-&lt;p&gt;High cyclomatic complexity doesn’t automatically mean that a method is a problem. It just gives us a reason to inspect that method and see if it is testable and adequately tested. Maybe there’s a giant &lt;code class=&quot;highlighter-rouge&quot;&gt;switch&lt;/code&gt; statement that isn’t worth refactoring and we can decide to ignore it. In each case we’re using our judgment. A metric does not compel us to change anthing.&lt;/p&gt;
-
-&lt;p&gt;I’ve only hinted at why metrics and analysis are useful. Discussing potential objections - some understandable, some less so - took up the whole post. To read more on the subject I recommend &lt;a href=&quot;https://blog.ndepend.com/category/code-metrics/&quot;&gt;this series of posts&lt;/a&gt;.&lt;/p&gt;
-</description>
-        <pubDate>Wed, 18 Apr 2018 05:20:58 -0400</pubDate>
-        <link>http://scotthannen.org/blog/2018/04/18/invalid-reasons-for-ignoring-code-metrics-analysis.html</link>
-        <guid isPermaLink="true">http://scotthannen.org/blog/2018/04/18/invalid-reasons-for-ignoring-code-metrics-analysis.html</guid>
         
         
         <category>blog</category>

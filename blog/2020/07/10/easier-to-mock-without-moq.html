@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Scott Hannen">
+    <title>Sometimes It&#39;s Easier to Mock Without Moq</title>
+    <meta name="description" content="I like Moq. It’s easy to use and it’s used frequently enoughthat developers are familiar with it. But sometimes there’s an even easier way to write tests, an...">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">   
+    <link rel="stylesheet" href="/css/main.css">
+
+    <link rel="canonical" href="http://scotthannen.org/blog/2020/07/10/easier-to-mock-without-moq.html">
+    <link rel="alternate" type="application/rss+xml" title="Scott Hannen" href="http://scotthannen.org/feed.xml">
+</head>
+
+  <body>
+
+    <header class="site-header">
+    <div class="wrapper" style="height: 113px">
+        <div style="float: left">
+            <a class="site-title" href="/">
+                <img src="/images/scotthannenorg_logo.png" style="height: 113px; width: 121px" />
+
+            </a>
+        </div>
+        <div style="float: left; margin-top:40px">
+            <a class="site-title" href="/">Scott Hannen</a>
+        </div>
+        <div style="float: right; margin-top: 56px;">
+            <a class="page-link" href="/about">About</a>
+        </div>
+    </div>
+</header>
+
+    <div class="page-content">
+      <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+
+  <header class="post-header">
+    <h1 class="post-title" itemprop="name headline">Sometimes It's Easier to Mock Without Moq</h1>
+    <p class="post-meta"><time datetime="2020-07-10T00:00:00-04:00" itemprop="datePublished">Jul 10, 2020</time></p>
+  </header>
+
+  <div class="post-content" itemprop="articleBody">
+    <p>I like <a href="https://github.com/Moq/moq4/wiki/Quickstart">Moq</a>. It’s easy to use and it’s used frequently enough
+that developers are familiar with it. But sometimes there’s an even easier way to write tests, and that
+involves creating classes that mock interfaces.</p>
+
+<p>As an example (I’ll try not to convolute this) suppose we have a class that</p>
+<ul>
+  <li>listens to messages from a queue</li>
+  <li>reads the contents of the message and converts it into a command</li>
+  <li>invokes a command handler</li>
+</ul>
+
+<p>I want to write a test to verify that given a message with specific contents,
+the command sent to the command handler has the expected properties.</p>
+
+<p>Here’s what that test might look like using Moq:
+)</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">[TestMethod]</span>
+<span class="k">public</span> <span class="k">async</span> <span class="n">Task</span> <span class="nf">CommandHandlerInvokedWithCorrectCommand</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="kt">var</span> <span class="n">commandHandlerMock</span> <span class="p">=</span> <span class="k">new</span> <span class="n">Mock</span><span class="p">&lt;</span><span class="n">ICommandHandler</span><span class="p">&lt;</span><span class="n">DoSomethingCommand</span><span class="p">&gt;&gt;();</span>
+    <span class="n">DoSomethingCommand</span> <span class="n">handledCommand</span> <span class="p">=</span> <span class="k">null</span><span class="p">;</span>
+    <span class="n">commandHandlerMock</span><span class="p">.</span><span class="nf">Setup</span><span class="p">(</span><span class="n">x</span> <span class="p">=&gt;</span>
+            <span class="n">x</span><span class="p">.</span><span class="nf">HandleCommandAsync</span><span class="p">(</span><span class="n">It</span><span class="p">.</span><span class="n">IsAny</span><span class="p">&lt;</span><span class="n">DoSomethingCommand</span><span class="p">&gt;()))</span>
+        <span class="p">.</span><span class="n">Callback</span><span class="p">&lt;</span><span class="n">DoSomethingCommand</span><span class="p">&gt;(</span><span class="n">command</span> <span class="p">=&gt;</span> <span class="n">handledCommand</span> <span class="p">=</span> <span class="n">command</span><span class="p">);</span>
+    <span class="kt">var</span> <span class="n">subject</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">MessageListener</span><span class="p">(</span><span class="n">commandHandlerMock</span><span class="p">.</span><span class="n">Object</span><span class="p">);</span>
+    <span class="kt">var</span> <span class="n">message</span> <span class="p">=</span> <span class="nf">CreateMessage</span><span class="p">(</span><span class="s">"X"</span><span class="p">,</span> <span class="m">2</span><span class="p">);</span>
+    <span class="k">await</span> <span class="n">subject</span><span class="p">.</span><span class="nf">ReceiveMessage</span><span class="p">(</span><span class="n">message</span><span class="p">);</span>
+
+    <span class="n">Assert</span><span class="p">.</span><span class="nf">IsTrue</span><span class="p">(</span><span class="n">handledCommand</span><span class="p">.</span><span class="n">SomeProperty</span> <span class="p">==</span> <span class="s">"x"</span>
+                  <span class="p">&amp;&amp;</span> <span class="n">handledCommand</span><span class="p">.</span><span class="n">SomeOtherProperty</span> <span class="p">==</span> <span class="m">2</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>In case you haven’t used this, here’s what we’re doing:</p>
+<ul>
+  <li>Using Moq to create a <code class="highlighter-rouge">Mock&lt;ICommandHandler&lt;DoSomethingCommand&gt;&gt;</code></li>
+  <li>Setting up the mock so that when <code class="highlighter-rouge">HandleCommandAsync</code> is called,
+it executes a callback that assigns the <code class="highlighter-rouge">DoSomethingCommand</code> parameter
+passed to the command handler to the <code class="highlighter-rouge">handledCommand</code> variable so that
+we can inspect the command that was sent to the handler.</li>
+</ul>
+
+<p>This isn’t bad. I’ve written it a bunch of times, and developers who’ve
+used Moq know what it means. But can we make it a little simpler?
+Judge for yourself.</p>
+
+<p>In the time it takes me to set up that mock, I can create this class:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">public</span> <span class="k">class</span> <span class="nc">MockCommandHandler</span><span class="p">&lt;</span><span class="n">T</span><span class="p">&gt;</span> <span class="p">:</span> <span class="n">ICommandHandler</span><span class="p">&lt;</span><span class="n">T</span><span class="p">&gt;</span>
+<span class="p">{</span>
+    <span class="k">public</span> <span class="n">T</span> <span class="n">HandledCommand</span> <span class="p">{</span> <span class="k">get</span><span class="p">;</span> <span class="k">private</span> <span class="k">set</span><span class="p">;</span> <span class="p">}</span>
+
+    <span class="k">public</span> <span class="k">async</span> <span class="n">Task</span> <span class="nf">HandleCommandAsync</span><span class="p">(</span><span class="n">T</span> <span class="n">command</span><span class="p">)</span>
+    <span class="p">{</span>
+        <span class="n">HandledCommand</span> <span class="p">=</span> <span class="n">command</span><span class="p">;</span>
+    <span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>That took seconds. What does it do for the unit test?
+I think it’s an improvement.</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">[TestMethod]</span>
+<span class="k">public</span> <span class="k">async</span> <span class="n">Task</span> <span class="nf">CommandHandlerInvokedWithCorrectCommand</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="kt">var</span> <span class="n">commandHandler</span> <span class="p">=</span> <span class="k">new</span> <span class="n">MockCommandHandler</span><span class="p">&lt;</span><span class="n">DoSomethingCommand</span><span class="p">&gt;();</span>
+    <span class="kt">var</span> <span class="n">subject</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">MessageListener</span><span class="p">(</span><span class="n">commandHandler</span><span class="p">);</span>
+    <span class="kt">var</span> <span class="n">message</span> <span class="p">=</span> <span class="nf">CreateMessage</span><span class="p">(</span><span class="s">"X"</span><span class="p">,</span> <span class="m">2</span><span class="p">);</span>
+    <span class="k">await</span> <span class="n">subject</span><span class="p">.</span><span class="nf">ReceiveMessage</span><span class="p">(</span><span class="n">message</span><span class="p">);</span>
+    <span class="kt">var</span> <span class="n">handledCommand</span> <span class="p">=</span> <span class="n">commandHandler</span><span class="p">.</span><span class="n">HandledCommand</span><span class="p">;</span>
+    <span class="n">Assert</span><span class="p">.</span><span class="nf">IsTrue</span><span class="p">(</span><span class="n">handledCommand</span><span class="p">.</span><span class="n">SomeProperty</span> <span class="p">==</span> <span class="s">"x"</span>
+                  <span class="p">&amp;&amp;</span> <span class="n">handledCommand</span><span class="p">.</span><span class="n">SomeOtherProperty</span> <span class="p">==</span> <span class="m">2</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Isn’t that easier to read? It’s undeniably shorter. And I can reuse that
+mock command handler in other tests. It also makes a difference if a
+test necessarily sets up more dependencies. We want to keep our tests as
+short and easy to read as possible.</p>
+
+<h3 id="the-wall-of-moq">The Wall of Moq</h3>
+
+<p>As a side note, sometimes if classes have too many dependencies we declare
+a bunch of Moq mocks as private variables in our tests followed by lots of initialization code that
+instantiates them and sets them up, and still individual tests have to do different setup for some of them.
+All we see when we open the file is Moq.</p>
+
+<p>That’s not a Moq problem - it’s a problem with the classes we’re testing. They
+have too many dependencies. Anyway, I don’t like it. I call it “the Wall of Moq.”
+It makes tests difficult to read. We’ll see mocks set up with behaviors they don’t
+need because no one can keep track of which ones are needed for any one test.
+Once that happens we can no longer understand either the tests or the code
+we’re testing.</p>
+
+<h3 id="its-really-easy-with-delegates">It’s Really Easy With Delegates</h3>
+
+<p>What if instead of an <code class="highlighter-rouge">ICommandHandler&lt;T&gt;</code> interface we have a delegate,
+and we inject that into our class? (More on that <a href="/blog/2018/03/18/depending-on-functions-instead-of-interfaces.html">here</a>).</p>
+
+<p>If we inject this delegate into our message listener instead of an interface:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">public</span> <span class="k">delegate</span> <span class="n">Task</span> <span class="n">CommandHandler</span><span class="p">&lt;</span><span class="n">T</span><span class="p">&gt;(</span><span class="n">T</span> <span class="n">command</span><span class="p">);</span>
+</code></pre></div></div>
+
+<p>…then we can use a local method as our mock:</p>
+
+<div class="language-csharp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="na">[TestMethod]</span>
+<span class="k">public</span> <span class="k">async</span> <span class="n">Task</span> <span class="nf">CommandHandlerInvokedWithCorrectCommand</span><span class="p">()</span>
+<span class="p">{</span>
+    <span class="n">DoSomethingCommand</span> <span class="n">handledCommand</span> <span class="p">=</span> <span class="k">null</span><span class="p">;</span>
+    <span class="k">async</span> <span class="n">Task</span> <span class="nf">CommandHandlerMock</span><span class="p">(</span><span class="n">DoSomethingCommand</span> <span class="n">command</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="n">handledCommand</span> <span class="p">=</span> <span class="n">command</span><span class="p">;</span>
+    <span class="kt">var</span> <span class="n">subject</span> <span class="p">=</span> <span class="k">new</span> <span class="nf">MessageListener</span><span class="p">(</span><span class="n">CommandHandlerMock</span><span class="p">);</span>
+    <span class="kt">var</span> <span class="n">message</span> <span class="p">=</span> <span class="nf">CreateMessage</span><span class="p">(</span><span class="s">"X"</span><span class="p">,</span> <span class="m">2</span><span class="p">);</span>
+    <span class="k">await</span> <span class="n">subject</span><span class="p">.</span><span class="nf">ReceiveMessage</span><span class="p">(</span><span class="n">message</span><span class="p">);</span>
+    <span class="n">Assert</span><span class="p">.</span><span class="nf">IsTrue</span><span class="p">(</span><span class="n">handledCommand</span><span class="p">.</span><span class="n">SomeProperty</span> <span class="p">==</span> <span class="s">"x"</span>
+                  <span class="p">&amp;&amp;</span> <span class="n">handledCommand</span><span class="p">.</span><span class="n">SomeOtherProperty</span> <span class="p">==</span> <span class="m">2</span><span class="p">);</span>
+<span class="p">}</span>
+</code></pre></div></div>
+
+<p>Now we don’t have to declare a separate <code class="highlighter-rouge">MockCommandHandler</code>, and
+we can still declare and set up the mock in a single succint line.</p>
+
+<p>It’s not a huge difference, but these alternatives will save us some typing,
+make it easier to reuse code in our tests, and keep our tests a little bit
+easier to read. And if I’m just mocking a method that returns something
+I’ll still use Moq.</p>
+
+
+  </div>
+
+</article>
+
+      </div>
+    </div>
+
+    
+<footer class="site-footer">
+
+    <div class="wrapper">
+
+        <div class="footer-col-wrapper">
+            <div class="footer-col footer-col-1">
+                <ul class="contact-list">
+                    <li>Scott Hannen</li>
+                    <li><a href="mailto:scotthannen@gmail.com">scotthannen@gmail.com</a></li>
+                </ul>
+
+                <div>&copy; 2019 Scott Hannen. All rights reserved.</div>
+            </div>
+
+            <div class="footer-col footer-col-2">
+                &nbsp;
+            </div>
+
+            <div class="footer-col footer-col-3">
+                <p></p>
+                <div style="text-align: right;">
+                    <a href="https://twitter.com/scotthannen" class="fa fa-twitter"></a>
+                    <a href="https://www.linkedin.com/in/scott-hannen/" class="fa fa-linkedin"></a>
+                    <a href="/feed.xml" class="fa fa-rss"></a>
+                    <a href="https://stackoverflow.com/users/5101046/scott-hannen">
+                        <img src="https://stackoverflow.com/users/flair/5101046.png" style="margin-top: -13px" width="208" height="58" alt="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers" title="profile for Scott Hannen at Stack Overflow, Q&amp;A for professional and enthusiast programmers">
+                    </a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</footer>
+
+<script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+            m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-36543336-2', 'auto');
+    ga('send', 'pageview');
+
+</script>
+
+  </body>
+
+</html>
