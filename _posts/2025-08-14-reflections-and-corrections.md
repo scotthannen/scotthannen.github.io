@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Reflections and Corrections"
-date:   2024-08-14 -0400
+date:   2025-08-14 -0400
 category: blog
 description: Thoughts on what I've learned since writing previous blog posts
 ---
