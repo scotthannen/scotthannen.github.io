@@ -4,6 +4,8 @@ title:  "The Multidimensional Developer"
 date:   2024-01-02 -0400
 category: blog
 description: There are more ways to grow than learning another language or JavaScript framework.
+redirect_from:
+  - /blog/2024/01/02/mutidimensional-developer.html
 ---
 Hopefully we're past talking about the 10x developer. No one knows what it means except that if there's a 10x there must be a 1x. It's about comparisons between developers. I'm not interested in that.
 
