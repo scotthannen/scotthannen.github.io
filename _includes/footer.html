@@ -10,7 +10,7 @@
                     <li><a href="mailto:{{ site.email }}">{{ site.email }}</a></li>
                 </ul>
 
-                <div>&copy; 2024 Scott Hannen. All rights reserved.</div>
+                <div>&copy; <span id="copyright-year">{{ site.time | date: "%Y" }}</span> Scott Hannen. All rights reserved.</div>
             </div>
 
             <div class="footer-col footer-col-2">
@@ -42,5 +42,7 @@
 
     ga('create', 'G-VG9N48VQZB', 'auto');
     ga('send', 'pageview');
+
+    document.getElementById('copyright-year').textContent = new Date().getFullYear();
 
 </script>
