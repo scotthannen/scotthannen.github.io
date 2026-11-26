@@ -209,12 +209,19 @@ pre {
     }
 }
 
+.social-links {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
 a.social-icon {
     display: inline-block;
     box-sizing: border-box;
     width: 58px;
     height: 58px;
-    margin-left: 8px;
+    margin: 0;
     padding: 0;
     font-size: 30px;
     line-height: 58px;
@@ -222,6 +229,16 @@ a.social-icon {
     text-decoration: none;
     color: #fff;
     vertical-align: middle;
+}
+
+.stackoverflow-flair {
+    display: inline-block;
+    line-height: 0;
+}
+
+.stackoverflow-flair img {
+    display: block;
+    margin: 0;
 }
 
 a.social-icon:hover {
