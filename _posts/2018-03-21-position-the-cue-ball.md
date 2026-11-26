@@ -10,7 +10,7 @@ I think most people are familiar with billiards, also called "pool." It's the ga
 
 As a teenager I used to play billiards. While I became marginally better at knocking the balls into the pockets, I quickly plateaued. Almost every game followed the same pattern:
  
-- First was the "break", which is where the balls are arranged in triangle, you hit them with the cue ball, and they roll off in different directions. There are fifteen balls so chances are something will roll into a pocket even though it wasn't aimed.
+- First was the "break", which is where the balls are arranged in a triangle, you hit them with the cue ball, and they roll off in different directions. There are fifteen balls so chances are something will roll into a pocket even though it wasn't aimed.
 - Next I would start aiming to sink individual balls. This started off easy too, because there were lots of balls and at least a few were already near pockets.
 - At about the halfway point the game would get really hard because I had made the easier shots and the remaining ones were increasingly difficult. The last few shots were usually all but impossible.
 

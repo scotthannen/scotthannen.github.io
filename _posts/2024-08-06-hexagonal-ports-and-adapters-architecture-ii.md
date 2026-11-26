@@ -49,7 +49,7 @@ This bears repeating because it's where the name of the architecture - "Ports an
 - The application exposes a *port*, which is some technology-agnostic method consumers can call.
 - In the real world we need technology-specific ways to call those methods. *Adapters* are technology-specific. They provide a way to adapt an external input to a port.
 
-That's how we tell the application what to do. But what about the things the application needs in order do it, like a database, or somewhere to send notifications?
+That's how we tell the application what to do. But what about the things the application needs in order to do it, like a database, or somewhere to send notifications?
 
 ### How Does the Application Talk to Its Database and Other External Resources
 
@@ -86,7 +86,7 @@ public class FileSystemBlogRepository : IBlogRepository
 
 Remember the HTTP endpoint? It accepts some request object that the application doesn't know about, and maps it to a command the application understands. The application doesn't know about those details.
 
-The same is true here. The application only knows about the `IBlogRepository` interface and its own objects like `BlogPost`. If that must be mapped to and from something else like a relational SQL tables or files, that happens in the adapter. The outside knows about the inside. The inside doesn't know about the implementation details on the outside.
+The same is true here. The application only knows about the `IBlogRepository` interface and its own objects like `BlogPost`. If that must be mapped to and from something else like relational SQL tables or files, that happens in the adapter. The outside knows about the inside. The inside doesn't know about the implementation details on the outside.
 
 That keeps a lot of clutter out of the inside. Have you worked in an application that has numerous models for the same thing, like `BlogPost`, `BlogPostModel`, `BlogPostDto`, `BlogPostData`? At first you can't tell what they're used for, and eventually you memorize what each one means in the context of this one application. (The naming conventions are different in other applications because they're meaningless.) That happens because either there is no inside and outside, or we bring all the classes from the outside to the inside, where they all mix together. Hexagonal architecture prevents that by keeping models used by the adapters on the outside.
 

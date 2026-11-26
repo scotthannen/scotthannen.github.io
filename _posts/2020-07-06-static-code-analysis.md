@@ -117,7 +117,7 @@ guidelines that tell us when we're at or over the limit of what's okay.
 
 Wouldn't we want a code reviewer to say why the issues they point out matter? NDepend (and other analyzers) explain the signifance
 of the rules. NDepend links to articles for further reading so that we can understand and evaluate for ourselves the principles that
-underly its suggestions. 
+underlie its suggestions. 
 
 ## Conclusion
 Static code analysis helps us to strike the balance between fake pragmatism and unattainable perfection. It doesn't ensure 
@@ -127,7 +127,7 @@ harder to violate the Interface Segregation Principle if we limit the number of 
 messiness that we prevent will make it easier for human reviewers to see what remains to improve.
 
 Does this sound like a sales pitch? I suppose it is. I want to work in code developed by people who use NDepend or something
-like it because it's going to be easier to understand and modify. I hate the feeling when I've introduce a defect and I
+like it because it's going to be easier to understand and modify. I hate the feeling when I've introduced a defect and I
 realize that in part it's because the code was difficult to read, change, and test, but it was my change and I own it. It's 
 going to happen. I want less of it.
 

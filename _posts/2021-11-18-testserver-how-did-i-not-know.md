@@ -3,12 +3,12 @@ layout: post
 title:  "ASP.NET Core Integration Tests With TestServer - How Did I Not Know About This?"
 date:   2021-11-18 01:20:58 -0400
 category: blog
-description: TestServer makes writing integration tests for ASP.NET Core application easy.
+description: TestServer makes writing integration tests for an ASP.NET Core application easy.
 ---
 
 I've been looking for ways to write better integration tests. My [previous set of experiments](/blog/2021/04/07/integration-test-experiment-1.html) proved useful in practice, but the approach could use maybe one level of de-complication.
 
-In the meantime I discovered something out-of-the-box tool that provides a simple way to test ASP.NET Core applications: [ASP.NET Core `TestServer`](https://docs.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.testhost.testserver). It doesn't replace what I worked on previously. It's something separate. I use both approaches. But this is easier and doesn't require changing the way an application is configured.
+In the meantime I discovered an out-of-the-box tool that provides a simple way to test ASP.NET Core applications: [ASP.NET Core `TestServer`](https://docs.microsoft.com/en-us/dotnet/api/microsoft.aspnetcore.testhost.testserver). It doesn't replace what I worked on previously. It's something separate. I use both approaches. But this is easier and doesn't require changing the way an application is configured.
 
 In this post I'll start with a simple scenario in case that's all you need and then get into some of the more fun stuff we can do with `TestServer`. Once you see the potential you'll likely get more ideas about how to write the sort of tests you want to write.
 
@@ -36,7 +36,7 @@ Next I'm adding a test project using the "NUnit Test Project (.NET Core)" templa
 - Newtonsoft.Json (latest)
 - Moq (latest)
 
-Here's the test file in its entirety. I'll explain what each part does, but it's probably obvious just from looking it.
+Here's the test file in its entirety. I'll explain what each part does, but it's probably obvious just from looking at it.
 
 ```csharp
 using Microsoft.AspNetCore.Hosting;

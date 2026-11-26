@@ -184,7 +184,7 @@ A class having more than one dependency is not a problem. Unless our class has t
 the number solves a non-existent problem.
 
 __Update 12/31/2021__
-__I still think this way in most scenarios. Web API controllers are little bit different. In the type of application where we'd use MediatR they don't contain logic. They're nothing but classes that receive inputs and route them to higher-level code in the form of requests or commands. In that case, if we're going to directly inject command and request handlers we'd have to either keep controllers small to limit the number of injected dependencies or have a ton of injected dependencies. In practice neither choice feels right.__
+__I still think this way in most scenarios. Web API controllers are a little bit different. In the type of application where we'd use MediatR they don't contain logic. They're nothing but classes that receive inputs and route them to higher-level code in the form of requests or commands. In that case, if we're going to directly inject command and request handlers we'd have to either keep controllers small to limit the number of injected dependencies or have a ton of injected dependencies. In practice neither choice feels right.__
 
 __If it was higher level code I'd still argue that a class should have a limited number of explicit dependencies. But in well-written API controllers that constraint likely isn't useful.__
 

@@ -110,7 +110,7 @@ This might get us where we need to be:
     }
 ```
 
-Now we can instantiate a new instance of `ClassINeedToAddToTheMess` and it will create its own default dependenies, but we can test the class using mocks. 
+Now we can instantiate a new instance of `ClassINeedToAddToTheMess` and it will create its own default dependencies, but we can test the class using mocks. 
 
 This suffices in some cases where we don’t have a lot of nested dependencies and don’t need to do anything complicated.
 
@@ -118,7 +118,7 @@ But what if we need to construct more complex dependencies using named component
 
 ### Create Your Own Composition Root and Expose It With a Service Locator
 
-Yes, i’m recommending that you expose yourself to scorn, ridicule, and self-loathing by deliberately and knowingly implementing a recognized anti-pattern. Maybe you’ll feel better if you add a comment like this:
+Yes, I'm recommending that you expose yourself to scorn, ridicule, and self-loathing by deliberately and knowingly implementing a recognized anti-pattern. Maybe you’ll feel better if you add a comment like this:
 
 ```csharp
     // I’m so sorry that I had to implement a service locator. There was no other way. Forgive me!
@@ -241,7 +241,7 @@ Now the god class, which was already creating and using its own `TelemetryClient
 
 Because we're creating a class instance - calling `new` to instantiate a new object - we can't mock this dependency, so the god class is less testable. The trade-off is that the classes it returns - all of the new stuff - use dependency injection, are testable, and don't have any reference to the container. 
 
-We want our composition root with all its references to the container to be at application startup, far away from the business end of application. Since we can’t, we’ve planted a new composition root where we need it and done our best to keep it tidy.
+We want our composition root with all its references to the container to be at application startup, far away from the business end of the application. Since we can’t, we’ve planted a new composition root where we need it and done our best to keep it tidy.
 
 ### It's Testable
 

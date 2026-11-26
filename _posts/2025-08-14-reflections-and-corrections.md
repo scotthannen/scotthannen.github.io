@@ -9,7 +9,7 @@ If you're reading this, perhaps you've found something on this blog interesting 
 
 This post is about my other blog posts. Like the About Me page, I'm writing it only because to some extent my blog represents me. Over time, however, the individual posts may not. I feel compelled to address this somehow, even though it's unlikely that anyone cares except me.
 
-Some of this reflecton is a little bit funny. This blog contains bits and pieces of my learning journey, but it's weird to read myself <a target="_blank" href="https://scotthannen.org/blog/2016/02/19/unit-tests-hello-world.html">describing unit tests</a> like I've just discovered fire. In other cases the information is obsolete. And sometimes I no longer feel the same way about what I wrote or I was just wrong.
+Some of this reflection is a little bit funny. This blog contains bits and pieces of my learning journey, but it's weird to read myself <a target="_blank" href="https://scotthannen.org/blog/2016/02/19/unit-tests-hello-world.html">describing unit tests</a> like I've just discovered fire. In other cases the information is obsolete. And sometimes I no longer feel the same way about what I wrote or I was just wrong.
 
 With that in mind, here are some notes on a few older posts:
 
@@ -67,7 +67,7 @@ It was an experiment. It led me in the right direction but I wouldn't do what I 
 
 - Cleanly separate dependency injection code so that I can re-use the production code in a test.
 - Create a `TestServer` or `IHost` and register dependencies with it using the same code as I use in production, including code that reads from configuration settings.
-- If neeeded, override some dependencies with mocks.
+- If needed, override some dependencies with mocks.
 - Either send HTTP requests using the `HttpClient` provided by `TestServer`, or resolve dependencies from the `ServiceProvider` and interact with them.
 
 ---

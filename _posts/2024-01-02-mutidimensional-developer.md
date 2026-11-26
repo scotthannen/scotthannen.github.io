@@ -14,7 +14,7 @@ This is the only dimension that is even remotely quantifiable, but it's still va
 
 We shouldn't over- or under-emphasize this. Instead we should put it in perspective. Knowing how to use more things is good. It looks better on our resume. It keeps us from getting bored. It keeps our skills from becoming outdated. We have more ways to solve problems. We prove to ourselves and others that we can learn and adapt.
 
-If we focus all of our energy on this there's a risk that we'll ignore other areas where we can grow, and the returns diminish. We might know how to write code in ten languages and use a dozen JavaScript frameworks but how much does that help us when we're working on single project? 
+If we focus all of our energy on this there's a risk that we'll ignore other areas where we can grow, and the returns diminish. We might know how to write code in ten languages and use a dozen JavaScript frameworks but how much does that help us when we're working on a single project? 
 
 When I talk about this dimension I'm referring to the ability to make something work. It might not be pretty, but we can get something to render on a screen, move data in and out of a database, or send a message from A to B using some particular technology. If someone else doesn't know how to make it work and we do, we can help them. We can answer questions on Stack Overflow. It's valuable all by itself.
 

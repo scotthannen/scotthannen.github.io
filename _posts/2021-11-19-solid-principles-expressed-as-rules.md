@@ -61,7 +61,7 @@ Create a "high-level" project which contains important application logic. Don't 
 
 Those interfaces should describe uses or behaviors. They should not have names like `IFooApiClient` or `IFooSqlRepository` that describe implementations. And those interfaces should be in the same project as the code that depends on them.
 
-The implementation details are in in other projects. Those implementation details are "low-level" code. They depend on (reference) the high-level project and implement its interfaces.
+The implementation details are in other projects. Those implementation details are "low-level" code. They depend on (reference) the high-level project and implement its interfaces.
 
 Whatever models or entities that high-level code uses should also be defined within the high-level project. If it's convenient low-level code can re-use them. But high-level code should never know about contracts or models used by low-level code.
 

@@ -105,7 +105,7 @@ Stop, I can't take it anymore. I'm prepared to accept that this is profoundly ig
 
 By the way, guess what the compiler does if you place `[Export(typeof(IOperation))]` on a class that doesn't implement `IOperation`? If you guessed nothing, that it's just a way to say that a class implements an interface when it doesn't so that you can get a runtime error instead of a compiler error, you are a winner. 
 
-I'm being a little hard on MEF right now, but here a few points in its defense: 
+I'm being a little hard on MEF right now, but here are a few points in its defense: 
 
 - The [documentation I referenced](https://docs.microsoft.com/en-us/dotnet/framework/mef/) does not include the words "dependency injection" or "inversion of control." I don't think that's a mistake.
 - As mentioned, the code samples do not resemble anything one would do with any popular dependency injection container (all of which resemble each other.) 
@@ -139,7 +139,7 @@ Let's break down some of the intriguing questions this raises:
 - Did I mention that these types are not discovered in a dynamically loaded assembly (the sort of scenario for which MEF exists), but rather exist in the exact same project as the code that "discovers" them (which contains fewer than ten classes, including the one that searches for the other ones?) I didn't need to, because you probably observed that the above code contains explicit instructions to search for types with names ending in `Blarg` *only in the assembly containing type `FooBlarg`*, the very type this code is meant to "discover." 
 - Is this like writing code to search for your coffee mug by starting from the current location of your coffee mug and then searching for all coffee mugs that occupy the same physical space? You're on fire.
 
-Searching an assembly for interfaces and implementations is a perfectly sane approach if you haven't explicitly referenced the assembly (which assumes that the types aren't in same project as the DI setup code) and don't know what types you want to use. (Even in that scenario I wouldn't search for them by name, because magic strings.) MEF exists for that scenario. It's called a *plugin architecture*. Using a plugin architecture to compose several known classes in a single project is not bad code. It is evil code.
+Searching an assembly for interfaces and implementations is a perfectly sane approach if you haven't explicitly referenced the assembly (which assumes that the types aren't in the same project as the DI setup code) and don't know what types you want to use. (Even in that scenario I wouldn't search for them by name, because magic strings.) MEF exists for that scenario. It's called a *plugin architecture*. Using a plugin architecture to compose several known classes in a single project is not bad code. It is evil code.
 
 So despite my initial reaction, MEF is not the problem. It's just not meant to be an IoC container. Perhaps [this blog post by a Microsoft MVP](https://blogs.msmvps.com/peterritchie/2010/02/24/mef-is-not-an-ioc-container-but-mef-uses-ioc/) entitled "MEF is not An IoC container; but MEF uses IoC" is also a hint. Another is that Googling ".net dependency injection containers" returns numerous lists containing popular libraries like Autofac, Windsor, Ninject, SimpleInjector, and Unity, followed by several others I've never heard of before, but not one of which mentions MEF, because *MEF is not an IoC container.* 
 

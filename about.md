@@ -13,7 +13,7 @@ When I had something interesting or exciting to share I used to send long emails
 
 Here's some reading I can't recommend enough:
 
-- [The Clean Code Blog](http://blog.cleancoder.com/) by Robert Martin (Uncle Bob.) It's inspiration to be passionate and opinionated.  
+- [The Clean Code Blog](http://blog.cleancoder.com/) by Robert Martin (Uncle Bob). It's inspiration to be passionate and opinionated.  
 - [DaedTech](https://www.daedtech.com/), a blog by Erik Dietrich. Every new developer should read his [Expert Beginner](https://www.daedtech.com/how-developers-stop-learning-rise-of-the-expert-beginner/) series which tells us what not to become and shows why we should listen to knowledge, not job titles.
 - [Code Complete 2nd Edition](http://cc2e.com/) is the book I wish had been available when I started, except it was and I didn't know it. It doesn't matter that it's from 2004 and the examples are in Java. It doesn't matter at all. Just read this book.
 

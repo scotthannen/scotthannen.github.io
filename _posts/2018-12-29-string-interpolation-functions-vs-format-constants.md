@@ -51,7 +51,7 @@ string GetInterpolatedString(string value0, DateTime value1, int value2)
 }
 ```
 
-...and it compiles but gives a runtime error because our constant expects four arguments but we're supplying three. We though we were being clever (okay, I did) by storing the `string` as a constant, but its disconnection from the function that uses it makes it fragile. Sure, I could write a unit test, but string interpolation is better because in addition to being easier to read and write, it gives us compiler errors instead of runtime errors when it's wrong. 
+...and it compiles but gives a runtime error because our constant expects four arguments but we're supplying three. We thought we were being clever (okay, I did) by storing the `string` as a constant, but its disconnection from the function that uses it makes it fragile. Sure, I could write a unit test, but string interpolation is better because in addition to being easier to read and write, it gives us compiler errors instead of runtime errors when it's wrong. 
 
 It also becomes harder to understand if the constant is used in many places, which means that we won't see the constant when we're
 modifying methods that use it and vice versa. 
@@ -105,7 +105,7 @@ static Func<string, int, DateTime, string> FormatSomething { get; } = (foo, bar,
 
 If we just use a method signature instead of a delegate then the function's intended use is not as clear. 
 We could have functions for entirely unrelated purposes that have the exact same signatures. 
-Using a delegate and naming it (clearly) enables to communicate not just its signature but its purpose.
+Using a delegate and naming it (clearly) enables us to communicate not just its signature but its purpose.
 
 The initial problem almost seems too small to be called a problem. But what we've accomplished is:
 

@@ -178,7 +178,7 @@ Dependency Injection is even built into ASP.NET Core. Prior to that if you wante
 I also recommend reading all of the posts in [Robert Martin's blog](http://blog.cleancoder.com/). This blog inspires me and makes we want to be a better developer. I haven't yet adopted TDD (Test-Driven Development) as he advocates but I'm certain that I'm going to try it with serious intent.
 
 #### Diagrams?
-This is one case where I'll assert that diagrams don't help. If someone's mind is working to comprehend a new principle *and* unfamiliar terminology at once, a diagram may be just the straw that congnitively overloads the camel. Not only can they not mentally process the diagram, they may become *less* able to process what they've read than if they hadn't seen the diagram. Maybe that's just me. Maybe I'm lazy and I should try harder to follow the diagrams. Google "Dependency Inversion", check out the diagrams found alongside the explanations, and judge for yourself. 
+This is one case where I'll assert that diagrams don't help. If someone's mind is working to comprehend a new principle *and* unfamiliar terminology at once, a diagram may be just the straw that cognitively overloads the camel. Not only can they not mentally process the diagram, they may become *less* able to process what they've read than if they hadn't seen the diagram. Maybe that's just me. Maybe I'm lazy and I should try harder to follow the diagrams. Google "Dependency Inversion", check out the diagrams found alongside the explanations, and judge for yourself. 
 
 
 

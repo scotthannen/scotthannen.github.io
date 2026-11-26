@@ -91,7 +91,7 @@ Don't just say, "New developers will be confused." Reason on it. Sometimes we'll
 #### Sometimes There Is No Pattern
 
 Sometimes we see an coincidental pattern in the code and then expect new code to follow it. For example, we might have several classes that perform similar
-functions. At some point the requirements for one class change, one if its private methods becomes more complex, and we extract it in to separate service. 
+functions. At some point the requirements for one class change, one of its private methods becomes more complex, and we extract it into a separate service. 
 We didn't do the same with the other classes, so now in that respect this one is different from the others.
 
 We could reason that we shouldn't refactor the class because then it won't be like the others. But that doesn't hold up under scrutiny. The two

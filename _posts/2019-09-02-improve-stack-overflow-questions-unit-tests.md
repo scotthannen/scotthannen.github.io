@@ -214,7 +214,7 @@ all at the same time. Imagine trying that with a console app. It would be a pain
 Unit tests make it easy.
 
 But there's an easier approach than creating multiple tests. We can create a
-single test that takes multiple inputs. This is called *parameterized test*. 
+single test that takes multiple inputs. This is called *a parameterized test*. 
 It might look like this:
 
 ```csharp
@@ -323,7 +323,7 @@ When we subtract the time that we would have spent searching for defects that tu
 wrote days or weeks ago, and stepping through lots of code in the debugger, the net result is that we save lots of time.
 
 It's not immediate. There is a little bit of a learning curve, and it might slow us down at first. 
-But if you were ever going to a make a leap of faith, this is the one to make. Once you're on the other side of it, you'll 
+But if you were ever going to make a leap of faith, this is the one to make. Once you're on the other side of it, you'll 
 never want to go back. You might even find yourself wondering how you ever wrote code without unit tests. It's that good.
 
 You may have read articles critical of unit testing, arguing that we can end up writing way too many useless tests and that 

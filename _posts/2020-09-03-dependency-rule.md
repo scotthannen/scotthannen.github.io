@@ -290,7 +290,7 @@ It references both the domain and the supporting code that implements the domain
 serviceCollection.AddTransient<IFooDataProvider, FooApiFooDataProvider>();
 ```
 
-We might even decide to package that registration into its own project, which enables us to test and re-use some if it,
+We might even decide to package that registration into its own project, which enables us to test and re-use some of it,
 but that's another subject.
 
 ## Conclusion
