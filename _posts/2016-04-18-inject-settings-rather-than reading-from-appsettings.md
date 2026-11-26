@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  'Inject Settings Rather Than Reading from AppSettings'
-date:   2026-04-18 07:20:58 -0400
+date:   2016-04-18 07:20:58 -0400
 category: blog
 ---
 
