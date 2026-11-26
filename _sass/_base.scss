@@ -209,34 +209,39 @@ pre {
     }
 }
 
-.fa-brands {
-    padding: 14px;
+a.social-icon {
+    display: inline-block;
+    box-sizing: border-box;
+    width: 58px;
+    height: 58px;
+    margin-left: 8px;
+    padding: 0;
     font-size: 30px;
-    width: 45px;
-    line-height: 30px;
+    line-height: 58px;
     text-align: center;
     text-decoration: none;
-    color: white;
+    color: #fff;
+    vertical-align: middle;
 }
 
-.fa-brands:hover {
+a.social-icon:hover {
     opacity: 0.7;
     text-decoration: none;
-    color: white;
+    color: #fff;
 }
 
-.fa-brands:visited {
-    color: white;
+a.social-icon:visited {
+    color: #fff;
 }
 
-.fa-x-twitter {
+a.social-icon.fa-x-twitter {
     background: #000;
 }
 
-.fa-linkedin {
+a.social-icon.fa-linkedin {
     background: #0a66c2;
 }
 
-.fa-rss {
+a.social-icon.fa-rss {
     background: #ff6600;
 }
